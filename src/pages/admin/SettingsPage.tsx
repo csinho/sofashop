@@ -37,6 +37,8 @@ export function SettingsPage() {
   const [themeA, setThemeA] = useState(store.theme_accent)
   const [pdfFooter, setPdfFooter] = useState(store.pdf_footer)
   const [policy, setPolicy] = useState(store.policy_text)
+  const [logoUrl, setLogoUrl] = useState(store.logo_url ?? '')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [bannerUrl, setBannerUrl] = useState(store.banner_url ?? '')
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
@@ -64,6 +66,19 @@ export function SettingsPage() {
     }
     setSaving(true)
     const sb = getSupabaseBrowserClient()
+
+    let nextLogo = logoUrl.trim() || null
+    if (logoFile) {
+      const ext = logoFile.name.split('.').pop() || 'png'
+      const path = `${store.id}/logo.${ext}`
+      const up = await sb.storage.from('store-assets').upload(path, logoFile, { upsert: true })
+      if (up.error) {
+        notifyErr(up.error.message)
+        setSaving(false)
+        return
+      }
+      nextLogo = sb.storage.from('store-assets').getPublicUrl(path).data.publicUrl
+    }
 
     let nextBanner = bannerUrl.trim() || null
     if (bannerFile) {
@@ -101,6 +116,7 @@ export function SettingsPage() {
         theme_accent: themeA,
         pdf_footer: pdfFooter,
         policy_text: policy,
+        logo_url: nextLogo,
         banner_url: nextBanner,
       })
       .eq('id', store.id)
@@ -108,7 +124,9 @@ export function SettingsPage() {
     setSaving(false)
     if (error) notifyErr(error.message)
     else {
+      setLogoFile(null)
       setBannerFile(null)
+      if (nextLogo) setLogoUrl(nextLogo)
       if (nextBanner) setBannerUrl(nextBanner)
       notifyOk('Configurações salvas.')
       await refresh()
@@ -132,6 +150,29 @@ export function SettingsPage() {
           <div>
             <label className="text-xs font-medium text-ink-600">CPF/CNPJ</label>
             <Input className="mt-1" value={maskCpfCnpj(doc)} onChange={(e) => setDoc(maskCpfCnpj(e.target.value))} required />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-ink-600">Logo da loja</label>
+            <p className="mt-0.5 text-xs text-ink-500">
+              Aparece no topo do catálogo público ao lado do nome. Quadrado ou levemente retangular funciona bem.
+            </p>
+            <input
+              type="file"
+              accept="image/*"
+              className="mt-2 block w-full text-sm"
+              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+            />
+            {logoFile ? (
+              <p className="mt-1 text-xs text-ink-600">Será enviado ao salvar: {logoFile.name}</p>
+            ) : null}
+            {logoUrl ? (
+              <div className="mt-3 flex items-center gap-3">
+                <img src={logoUrl} alt="" className="h-16 w-16 rounded-xl object-cover ring-1 ring-ink-200" />
+                <p className="text-xs text-ink-500">Prévia da logo atual</p>
+              </div>
+            ) : null}
+            <label className="mt-3 block text-xs font-medium text-ink-600">Ou URL da logo</label>
+            <Input className="mt-1" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" />
           </div>
           <div>
             <label className="text-xs font-medium text-ink-600">Banner da loja</label>
