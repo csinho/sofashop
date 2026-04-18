@@ -199,7 +199,7 @@ export function FinancePage() {
         <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto text-xs text-ink-600">
           {agg.installments.map((o) => (
             <li key={o.id}>
-              {o.id.slice(0, 8)} — {formatOrderPaymentSummary(o.payment_kind, o.payment_details).join(' ')} — {ORDER_STATUS_LABEL[o.status]}
+               - {formatOrderPaymentSummary(o.payment_kind, o.payment_details).join(' ')} — {ORDER_STATUS_LABEL[o.status]}
             </li>
           ))}
         </ul>

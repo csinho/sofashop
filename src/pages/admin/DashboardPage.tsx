@@ -90,7 +90,7 @@ export function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h2 className="font-display text-2xl font-semibold text-ink-900">Dashboard</h2>
-        <p className="text-sm text-ink-600">Visão geral da sua loja — dados isolados por tenant.</p>
+        <p className="text-sm text-ink-600">— Visão geral da sua loja</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
