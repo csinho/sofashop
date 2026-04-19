@@ -1,13 +1,26 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { notifyInfo } from '@/lib/notify'
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+import { getDefaultDocumentTitle } from '@/lib/documentTitle'
 
 export function LandingPage() {
+  useEffect(() => {
+    document.title = getDefaultDocumentTitle()
+  }, [])
+
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-white to-ink-50">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-200/50 via-transparent to-transparent" />
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-4 py-6">
-        <span className="font-display text-xl font-semibold text-ink-900">SofáShop</span>
+      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6">
+        <Link to="/" className="inline-flex min-w-0 shrink items-center py-1" aria-label="Início">
+          <img
+            src={BRAND_ASSETS.logoFull}
+            alt="SofáShop"
+            className="h-12 w-auto max-w-[min(72vw,380px)] object-contain object-left sm:h-14 sm:max-w-[420px] md:h-16 md:max-w-[480px]"
+          />
+        </Link>
         <div className="flex gap-2">
           <Link to="/login" onClick={() => notifyInfo('Abrindo login.')}>
             <Button variant="secondary">Entrar</Button>

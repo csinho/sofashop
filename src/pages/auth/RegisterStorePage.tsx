@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -10,6 +10,8 @@ import { validateBrazilPhone } from '@/lib/validators/phone'
 import { fetchAddressByCep } from '@/integrations/viacep'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { notifyOk } from '@/lib/notify'
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+import { getPwaBrandName } from '@/lib/documentTitle'
 
 function slugify(s: string) {
   return s
@@ -22,6 +24,10 @@ function slugify(s: string) {
 }
 
 export function RegisterStorePage() {
+  useEffect(() => {
+    document.title = `${getPwaBrandName()} — Cadastrar loja`
+  }, [])
+
   const nav = useNavigate()
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -154,7 +160,14 @@ export function RegisterStorePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <Link to="/" className="text-sm font-medium text-brand-700 hover:underline">
+      <div className="flex w-full justify-center px-1">
+        <img
+          src={BRAND_ASSETS.logoFull}
+          alt=""
+          className="h-16 w-full max-w-xl object-contain sm:h-[4.5rem] md:h-20 md:max-w-2xl"
+        />
+      </div>
+      <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-700 hover:underline">
         ← Voltar
       </Link>
       <h1 className="mt-4 font-display text-3xl font-semibold text-ink-900">Cadastro da loja</h1>

@@ -4,6 +4,7 @@ export type StoredCheckoutIdentity = {
   customerId: string | null
   fullName: string
   phone: string
+  phoneSecondary: string
   cep: string
   street: string
   number: string
@@ -27,6 +28,7 @@ export function loadCheckoutIdentity(storeId: string): StoredCheckoutIdentity | 
       customerId: typeof o.customerId === 'string' ? o.customerId : null,
       fullName: o.fullName,
       phone: o.phone,
+      phoneSecondary: typeof o.phoneSecondary === 'string' ? o.phoneSecondary : '',
       cep: typeof o.cep === 'string' ? o.cep : '',
       street: typeof o.street === 'string' ? o.street : '',
       number: typeof o.number === 'string' ? o.number : '',

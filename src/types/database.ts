@@ -125,6 +125,8 @@ export type Database = {
           full_name: string
           phone: string
           phone_normalized: string
+          phone_secondary: string
+          phone_secondary_normalized: string
           email: string | null
           cep: string | null
           street: string | null

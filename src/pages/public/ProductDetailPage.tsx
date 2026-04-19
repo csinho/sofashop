@@ -195,6 +195,7 @@ export function ProductDetailPage() {
             <label className="text-xs font-medium text-ink-600">Qtd</label>
             <IntegerField
               className="w-20"
+              min={1}
               value={String(qty)}
               onValueChange={(d) => setQty(Math.max(1, Number(d) || 1))}
             />

@@ -1,12 +1,18 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/contexts/AuthContext'
 import { notifyOk } from '@/lib/notify'
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+import { getPwaBrandName } from '@/lib/documentTitle'
 
 export function LoginPage() {
+  useEffect(() => {
+    document.title = `${getPwaBrandName()} — Entrar`
+  }, [])
+
   const nav = useNavigate()
   const { signIn, resetPassword } = useAuth()
   const [email, setEmail] = useState('')
@@ -51,7 +57,14 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-md flex-col justify-center px-4 py-12">
-      <Link to="/" className="mb-8 text-sm font-medium text-brand-700 hover:underline">
+      <div className="mb-8 flex w-full justify-center px-1">
+        <img
+          src={BRAND_ASSETS.logoFull}
+          alt=""
+          className="h-16 w-full max-w-md object-contain sm:h-[4.5rem] md:h-20"
+        />
+      </div>
+      <Link to="/" className="mb-6 text-sm font-medium text-brand-700 hover:underline">
         ← Voltar
       </Link>
       <Card>

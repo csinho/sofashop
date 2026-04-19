@@ -9,7 +9,7 @@ import { ORDER_STATUS_LABEL } from '@/constants/orderStatus'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { useMyStore } from '@/hooks/useMyStore'
 import { defaultCheckoutPaymentConfig, resolveCheckoutConfig } from '@/lib/checkoutConfig'
-import { sanitizeDecimalPtBr } from '@/lib/decimalInput'
+import { parseDecimalPtBr, sanitizeDecimalPtBr } from '@/lib/decimalInput'
 import { formatOrderPaymentSummary } from '@/lib/orderPaymentSummary'
 import { notifyErr, notifyOk } from '@/lib/notify'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
@@ -141,20 +141,46 @@ export function FinancePage() {
           <div>
             <label className="text-xs font-medium text-ink-600">Taxa cartão crédito / parcelado (%)</label>
             <Input
-              className="mt-1"
+              className="mt-1 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
               inputMode="decimal"
-              value={feeCr}
-              onChange={(e) => setFeeCr(sanitizeDecimalPtBr(e.target.value, 2))}
+              value={feeCr === '' ? '' : parseDecimalPtBr(feeCr)}
+              onChange={(e) => {
+                const t = e.target.value
+                if (t === '') {
+                  setFeeCr('')
+                  return
+                }
+                const n = Number(t)
+                if (!Number.isFinite(n)) return
+                setFeeCr(sanitizeDecimalPtBr(String(n).replace('.', ','), 2))
+              }}
               placeholder="0"
             />
           </div>
           <div>
             <label className="text-xs font-medium text-ink-600">Taxa cartão débito (%)</label>
             <Input
-              className="mt-1"
+              className="mt-1 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
               inputMode="decimal"
-              value={feeDb}
-              onChange={(e) => setFeeDb(sanitizeDecimalPtBr(e.target.value, 2))}
+              value={feeDb === '' ? '' : parseDecimalPtBr(feeDb)}
+              onChange={(e) => {
+                const t = e.target.value
+                if (t === '') {
+                  setFeeDb('')
+                  return
+                }
+                const n = Number(t)
+                if (!Number.isFinite(n)) return
+                setFeeDb(sanitizeDecimalPtBr(String(n).replace('.', ','), 2))
+              }}
               placeholder="0"
             />
           </div>
@@ -199,7 +225,7 @@ export function FinancePage() {
         <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto text-xs text-ink-600">
           {agg.installments.map((o) => (
             <li key={o.id}>
-               - {formatOrderPaymentSummary(o.payment_kind, o.payment_details).join(' ')} — {ORDER_STATUS_LABEL[o.status]}
+              {formatOrderPaymentSummary(o.payment_kind, o.payment_details).join(' ')} — {ORDER_STATUS_LABEL[o.status]}
             </li>
           ))}
         </ul>

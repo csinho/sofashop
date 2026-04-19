@@ -10,6 +10,7 @@ type Row = {
   id: string
   full_name: string
   phone: string
+  phone_secondary: string | null
   orders: { id: string; total: number }[] | null
 }
 
@@ -26,14 +27,21 @@ export function CustomersPage() {
       const sb = getSupabaseBrowserClient()
       const { data } = await sb
         .from('customers')
-        .select('id, full_name, phone, orders(id, total)')
+        .select('id, full_name, phone, phone_secondary, orders(id, total)')
         .eq('store_id', store.id)
         .order('created_at', { ascending: false })
       if (!alive) return
       let list = (data as Row[]) ?? []
       if (q.trim()) {
         const t = q.trim().toLowerCase()
-        list = list.filter((r) => r.full_name.toLowerCase().includes(t) || r.phone.toLowerCase().includes(t))
+        list = list.filter((r) => {
+          const sec = (r.phone_secondary ?? '').toLowerCase()
+          return (
+            r.full_name.toLowerCase().includes(t) ||
+            r.phone.toLowerCase().includes(t) ||
+            sec.includes(t)
+          )
+        })
       }
       setRows(list)
       setLoading(false)
@@ -68,7 +76,7 @@ export function CustomersPage() {
             <thead className="border-b border-ink-100 bg-ink-50/80 text-xs uppercase text-ink-500">
               <tr>
                 <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3">Telefone</th>
+                <th className="px-4 py-3">Contato</th>
                 <th className="px-4 py-3">Pedidos</th>
                 <th className="px-4 py-3">Total gasto</th>
                 <th className="px-4 py-3" />
@@ -89,7 +97,12 @@ export function CustomersPage() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-ink-600">{r.phone}</td>
+                    <td className="px-4 py-3 text-ink-600">
+                      <span className="block">{r.phone}</span>
+                      {r.phone_secondary?.trim() ? (
+                        <span className="block text-xs text-ink-500">{r.phone_secondary}</span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3">{ords.length}</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(spent)}</td>
                     <td className="px-4 py-3 text-right">

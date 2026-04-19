@@ -4,6 +4,8 @@ import { ShoppingBag } from 'lucide-react'
 import { fetchCatalogStoreBySlug } from '@/services/catalogPublicService'
 import { useCart } from '@/contexts/CartContext'
 import type { CatalogStoreRow } from '@/types/database'
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+import { getDefaultDocumentTitle, getPwaBrandName } from '@/lib/documentTitle'
 
 export function CatalogLayout() {
   const { slug } = useParams<{ slug: string }>()
@@ -30,15 +32,16 @@ export function CatalogLayout() {
 
   useEffect(() => {
     if (store === undefined) return
+    const brand = getPwaBrandName()
     if (!store) {
-      document.title = 'SofáShop — Loja não encontrada'
+      document.title = `${brand} — Loja não encontrada`
       return () => {
-        document.title = 'SofáShop — Catálogo online'
+        document.title = getDefaultDocumentTitle()
       }
     }
-    document.title = `SofáShop — ${store.trade_name}`
+    document.title = `${brand} — ${store.trade_name}`
     return () => {
-      document.title = 'SofáShop — Catálogo online'
+      document.title = getDefaultDocumentTitle()
     }
   }, [store])
 
@@ -77,9 +80,13 @@ export function CatalogLayout() {
             {store.logo_url ? (
               <img src={store.logo_url} alt="" className="h-10 w-10 rounded-xl object-cover ring-1 ring-[color-mix(in_srgb,var(--cat-primary)_40%,#e5e7eb)]" />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--cat-accent)]/15 text-sm font-bold text-[var(--cat-accent)]">
-                {store.trade_name.slice(0, 1)}
-              </div>
+              <img
+                src={BRAND_ASSETS.icon}
+                alt=""
+                className="h-10 w-10 rounded-xl object-contain ring-1 ring-[color-mix(in_srgb,var(--cat-primary)_40%,#e5e7eb)]"
+                width={40}
+                height={40}
+              />
             )}
             <div className="min-w-0 text-left">
               <p className="truncate font-display text-lg font-semibold text-[var(--cat-primary)]">{store.trade_name}</p>

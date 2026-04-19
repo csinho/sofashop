@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import {
-  Armchair,
   Copy,
   CreditCard,
   Database,
@@ -20,6 +19,8 @@ import { useMyStore } from '@/hooks/useMyStore'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { notifyErr, notifyOk } from '@/lib/notify'
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+import { getDefaultDocumentTitle, getPwaBrandName } from '@/lib/documentTitle'
 
 const nav = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -40,6 +41,14 @@ export function AdminLayout() {
   useEffect(() => {
     setOpen(false)
   }, [loc.pathname])
+
+  useEffect(() => {
+    if (!store) return undefined
+    document.title = `${store.trade_name} — Painel`
+    return () => {
+      document.title = getDefaultDocumentTitle()
+    }
+  }, [store])
 
   if (!authLoading && !user) {
     return <Navigate to="/login" replace state={{ from: loc.pathname }} />
@@ -65,16 +74,24 @@ export function AdminLayout() {
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div className="flex h-14 items-center justify-between border-b border-ink-100 px-4 lg:h-16">
-          <Link to="/admin" className="flex items-center gap-2 font-display text-lg font-semibold text-ink-900">
-            <Armchair className="h-6 w-6 text-brand-600" />
-            SofáShop
+        <div className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-1.5 overflow-visible border-b border-ink-100 px-2 lg:h-14 lg:gap-2 lg:px-3">
+          <Link
+            to="/admin"
+            className="relative flex min-w-0 flex-1 items-center overflow-visible"
+            aria-label={getPwaBrandName()}
+            title={getPwaBrandName()}
+          >
+            <img
+              src={BRAND_ASSETS.logoFull}
+              alt=""
+              className="h-10 w-full max-w-[calc(100%-2.5rem)] origin-left scale-[1.42] object-contain object-left sm:h-11 sm:scale-[1.36] lg:h-12 lg:scale-[1.3] lg:max-w-none"
+            />
           </Link>
           <button type="button" className="rounded-lg p-2 hover:bg-ink-100 lg:hidden" onClick={() => setOpen(false)}>
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3 pt-2">
           {nav.map((item) => {
             const isActive = item.end ? loc.pathname === '/admin' : loc.pathname.startsWith(item.to)
             return (

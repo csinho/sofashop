@@ -46,6 +46,7 @@ export function CartPage() {
               <div className="flex items-center gap-3">
                 <IntegerField
                   className="w-16 !py-1.5"
+                  min={1}
                   value={String(l.qty)}
                   onValueChange={(d) => updateQty(l.key, Math.max(1, Number(d) || 1))}
                 />

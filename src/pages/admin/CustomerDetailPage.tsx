@@ -14,6 +14,7 @@ type Cust = {
   id: string
   full_name: string
   phone: string
+  phone_secondary: string | null
   email: string | null
   internal_notes: string | null
   orders: { id: string; order_number: string; created_at: string; status: OrderStatus; total: number }[] | null
@@ -33,7 +34,7 @@ export function CustomerDetailPage() {
       const sb = getSupabaseBrowserClient()
       const { data } = await sb
         .from('customers')
-        .select('id, full_name, phone, email, internal_notes, orders(id, order_number, created_at, status, total)')
+        .select('id, full_name, phone, phone_secondary, email, internal_notes, orders(id, order_number, created_at, status, total)')
         .eq('id', id!)
         .eq('store_id', store.id)
         .single()
@@ -81,6 +82,7 @@ export function CustomerDetailPage() {
         <Card>
           <h2 className="font-display text-2xl font-semibold text-ink-900 lg:text-3xl">{c.full_name}</h2>
           <p className="mt-1 text-sm text-ink-600">{c.phone}</p>
+          {c.phone_secondary?.trim() ? <p className="text-sm text-ink-600">{c.phone_secondary}</p> : null}
           {c.email ? <p className="text-sm text-ink-600">{c.email}</p> : null}
           <p className="mt-4 text-sm font-medium text-ink-900">Total gasto: {formatCurrency(spent)}</p>
         </Card>

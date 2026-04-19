@@ -1,6 +1,9 @@
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+
 export function SetupPage() {
   return (
     <div className="mx-auto flex min-h-svh max-w-lg flex-col justify-center gap-4 px-4 py-16">
+      <img src={BRAND_ASSETS.logoFull} alt="" className="h-9 max-w-[200px] self-start object-contain" />
       <h1 className="font-display text-3xl font-semibold text-ink-900">Configurar Supabase</h1>
       <p className="text-sm leading-relaxed text-ink-600">
         Crie o arquivo <code className="rounded bg-ink-100 px-1">.env</code> na raiz do projeto com{' '}

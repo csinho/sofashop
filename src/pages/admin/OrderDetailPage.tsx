@@ -26,8 +26,8 @@ type OrderFull = {
   shipping_snapshot: Record<string, unknown>
   notes: string
   customers:
-    | { full_name: string; phone: string; email: string | null }
-    | { full_name: string; phone: string; email: string | null }[]
+    | { full_name: string; phone: string; phone_secondary?: string; email: string | null }
+    | { full_name: string; phone: string; phone_secondary?: string; email: string | null }[]
     | null
   order_items: {
     id: string
@@ -58,7 +58,7 @@ export function OrderDetailPage() {
           `
           id, order_number, created_at, status, subtotal, total, payment_kind, payment_details,
           customer_snapshot, shipping_snapshot, notes,
-          customers ( full_name, phone, email ),
+          customers ( full_name, phone, phone_secondary, email ),
           order_items ( id, product_name, sku, quantity, unit_price, line_total, options_snapshot )
         `,
         )
@@ -126,6 +126,11 @@ export function OrderDetailPage() {
   if (loading) return <p className="text-sm text-ink-500">Carregando…</p>
   if (!order) return <p>Pedido não encontrado.</p>
 
+  const snap = (order.customer_snapshot ?? {}) as Record<string, unknown>
+  const cust = Array.isArray(order.customers) ? order.customers[0] : order.customers
+  const phoneSecondaryDisplay =
+    String(snap.phone_secondary ?? '').trim() || String(cust?.phone_secondary ?? '').trim() || ''
+
   return (
     <div className="w-full max-w-full space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -165,6 +170,7 @@ export function OrderDetailPage() {
             <p className="text-sm text-ink-600">
               {String((order.customer_snapshot as Record<string, unknown> | undefined)?.phone ?? '')}
             </p>
+            {phoneSecondaryDisplay ? <p className="text-sm text-ink-600">{phoneSecondaryDisplay}</p> : null}
           </Card>
           <Card>
             <h3 className="font-display text-lg font-semibold text-ink-900">Entrega</h3>

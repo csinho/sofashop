@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
@@ -37,6 +38,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.7.3",
     "typescript-eslint": "^8.24.1",
-    "vite": "^5.4.14"
+    "vite": "^5.4.14",
+    "vite-plugin-pwa": "^0.21.1"
   }
 }

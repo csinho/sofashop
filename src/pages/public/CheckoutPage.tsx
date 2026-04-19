@@ -31,6 +31,7 @@ export function CheckoutPage() {
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  const [phoneSecondary, setPhoneSecondary] = useState('')
   const [cep, setCep] = useState('')
   const [street, setStreet] = useState('')
   const [number, setNumber] = useState('')
@@ -52,6 +53,7 @@ export function CheckoutPage() {
   const applyResolved = useCallback((r: ResolvedCatalogCustomer) => {
     setFullName(r.full_name)
     setPhone(maskPhone(r.phone))
+    setPhoneSecondary(r.phone_secondary ? maskPhone(r.phone_secondary) : '')
     setCep(maskCep(r.cep))
     setStreet(r.street)
     setNumber(r.number)
@@ -67,6 +69,7 @@ export function CheckoutPage() {
     if (saved) {
       setFullName(saved.fullName)
       setPhone(maskPhone(saved.phone))
+      setPhoneSecondary(saved.phoneSecondary ? maskPhone(saved.phoneSecondary) : '')
       setCep(maskCep(saved.cep))
       setStreet(saved.street)
       setNumber(saved.number)
@@ -134,6 +137,14 @@ export function CheckoutPage() {
       setErr(pv.message ?? 'Telefone inválido')
       return
     }
+    const secTrim = phoneSecondary.trim()
+    if (secTrim) {
+      const pv2 = validateBrazilPhone(phoneSecondary)
+      if (!pv2.ok) {
+        setErr(pv2.message ?? 'Telefone alternativo inválido')
+        return
+      }
+    }
 
     const paymentDetails: Record<string, number> = {}
     if (payKind === 'parcelado') {
@@ -153,7 +164,11 @@ export function CheckoutPage() {
     try {
       const result = await submitCheckout({
         storeId: store.id,
-        customer: { full_name: fullName.trim(), phone },
+        customer: {
+          full_name: fullName.trim(),
+          phone,
+          ...(secTrim ? { phone_secondary: phoneSecondary } : {}),
+        },
         shipping: {
           cep: onlyDigits(cep),
           street: street.trim(),
@@ -174,6 +189,7 @@ export function CheckoutPage() {
         orderNumber: result.order_number,
         customerName: fullName.trim(),
         customerPhone: phone,
+        ...(secTrim ? { customerPhoneSecondary: phoneSecondary } : {}),
         addressLines: [
           `${street}, ${number}${complement ? ' — ' + complement : ''}`,
           `${district} — ${city}/${stateUf} — CEP ${onlyDigits(cep)}`,
@@ -191,6 +207,7 @@ export function CheckoutPage() {
         customerId: result.customer_id || null,
         fullName: fullName.trim(),
         phone,
+        phoneSecondary: secTrim ? phoneSecondary : '',
         cep: onlyDigits(cep),
         street: street.trim(),
         number: number.trim(),
@@ -255,6 +272,15 @@ export function CheckoutPage() {
               required
             />
           </div>
+          <div>
+            <label className="text-xs font-medium text-ink-600">Outro telefone (opcional)</label>
+            <p className="mt-0.5 text-xs text-ink-500">Caso não consigamos falar pelo número principal.</p>
+            <Input
+              className="mt-1"
+              value={phoneSecondary}
+              onChange={(e) => setPhoneSecondary(maskPhone(e.target.value))}
+            />
+          </div>
         </Card>
 
         <Card className="space-y-4">
@@ -315,6 +341,7 @@ export function CheckoutPage() {
               <label className="text-xs font-medium text-ink-600">Parcelas (mín. 2)</label>
               <IntegerField
                 className="mt-1"
+                min={2}
                 value={installments}
                 onValueChange={(d) => setInstallments(d ? String(Math.max(2, Number(d) || 2)) : '2')}
               />
@@ -340,7 +367,7 @@ export function CheckoutPage() {
           </div>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
           <Button type="submit" variant="catalog" loading={loading} className="px-8 py-3">
-            Salvar e abrir WhatsApp
+            Enviar pedido
           </Button>
         </Card>
       </form>

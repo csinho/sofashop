@@ -21,7 +21,10 @@ type Row = {
   status: OrderStatus
   total: number
   payment_kind: PaymentKind
-  customers: { full_name: string; phone: string } | { full_name: string; phone: string }[] | null
+  customers:
+    | { full_name: string; phone: string; phone_secondary?: string | null }
+    | { full_name: string; phone: string; phone_secondary?: string | null }[]
+    | null
 }
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
@@ -54,7 +57,7 @@ export function OrdersPage() {
       const sb = getSupabaseBrowserClient()
       let query = sb
         .from('orders')
-        .select('id, order_number, created_at, status, total, payment_kind, customers(full_name, phone)')
+        .select('id, order_number, created_at, status, total, payment_kind, customers(full_name, phone, phone_secondary)')
         .eq('store_id', store.id)
         .order('created_at', { ascending: false })
 
@@ -80,10 +83,12 @@ export function OrdersPage() {
         const t = q.trim().toLowerCase()
         list = list.filter((r) => {
           const c = Array.isArray(r.customers) ? r.customers[0] : r.customers
+          const sec = (c?.phone_secondary ?? '').toLowerCase()
           return (
             r.order_number.toLowerCase().includes(t) ||
             (c?.full_name?.toLowerCase().includes(t) ?? false) ||
-            (c?.phone?.includes(t) ?? false)
+            (c?.phone?.includes(t) ?? false) ||
+            sec.includes(t)
           )
         })
       }
@@ -287,6 +292,12 @@ export function OrdersPage() {
                         {c?.full_name}
                         <br />
                         <span className="text-xs">{c?.phone}</span>
+                        {c?.phone_secondary?.trim() ? (
+                          <>
+                            <br />
+                            <span className="text-xs text-ink-500">{c.phone_secondary}</span>
+                          </>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-ink-600">{formatDateTime(r.created_at)}</td>
                       <td className="px-4 py-3 font-semibold">{formatCurrency(Number(r.total))}</td>

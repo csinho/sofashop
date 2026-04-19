@@ -7,6 +7,7 @@ export type ResolvedCatalogCustomer = {
   id: string
   full_name: string
   phone: string
+  phone_secondary: string
   cep: string
   street: string
   number: string
@@ -24,6 +25,7 @@ function parseResolvedCustomer(data: unknown): ResolvedCatalogCustomer | null {
     id: String(row.id),
     full_name: String(row.full_name ?? ''),
     phone: String(row.phone ?? ''),
+    phone_secondary: String(row.phone_secondary ?? ''),
     cep: String(row.cep ?? ''),
     street: String(row.street ?? ''),
     number: String(row.number ?? ''),
@@ -54,6 +56,7 @@ export type CheckoutPayload = {
   customer: {
     full_name: string
     phone: string
+    phone_secondary?: string
     email?: string
   }
   shipping: {

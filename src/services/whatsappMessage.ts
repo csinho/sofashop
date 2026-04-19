@@ -7,6 +7,8 @@ export type WhatsAppOrderSummary = {
   orderNumber: string
   customerName: string
   customerPhone: string
+  /** Telefone alternativo (opcional), exibido na mensagem se preenchido. */
+  customerPhoneSecondary?: string
   addressLines: string[]
   lines: CartLine[]
   subtotal: number
@@ -35,6 +37,9 @@ export function buildWhatsAppMessage(s: WhatsAppOrderSummary) {
   const cust = [
     `👤 *Cliente:* ${s.customerName}`,
     `📞 *Telefone:* ${s.customerPhone}`,
+    ...(s.customerPhoneSecondary?.trim()
+      ? [`📞 *Telefone 2:* ${s.customerPhoneSecondary.trim()}`]
+      : []),
     `📍 *Endereço:*`,
     ...s.addressLines.map((l) => `   ${l}`),
   ].join('\n')
