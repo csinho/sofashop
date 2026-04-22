@@ -32,6 +32,31 @@ const nav = [
   { to: '/admin/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
+async function copyText(value: string) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(value)
+    return true
+  }
+
+  const ta = document.createElement('textarea')
+  ta.value = value
+  ta.setAttribute('readonly', '')
+  ta.style.position = 'fixed'
+  ta.style.top = '-9999px'
+  ta.style.left = '-9999px'
+  document.body.appendChild(ta)
+  ta.focus()
+  ta.select()
+  ta.setSelectionRange(0, ta.value.length)
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } finally {
+    document.body.removeChild(ta)
+  }
+  return ok
+}
+
 export function AdminLayout() {
   const { user, loading: authLoading, signOut } = useAuth()
   const { store, loading: storeLoading } = useMyStore()
@@ -156,10 +181,16 @@ export function AdminLayout() {
               onClick={async () => {
                 const url = `${window.location.origin}/loja/${store.slug}`
                 try {
-                  await navigator.clipboard.writeText(url)
-                  notifyOk('Link do catálogo copiado.')
+                  const ok = await copyText(url)
+                  if (ok) {
+                    notifyOk('Link do catálogo copiado.')
+                    return
+                  }
+                  window.prompt('Copie manualmente o link:', url)
+                  notifyErr('Cópia automática não disponível neste dispositivo.')
                 } catch {
-                  notifyErr('Não foi possível copiar o link.')
+                  window.prompt('Copie manualmente o link:', url)
+                  notifyErr('Não foi possível copiar automaticamente.')
                 }
               }}
             >

@@ -64,7 +64,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (idx >= 0) {
         const next = [...base]
         const cur = next[idx]!
-        next[idx] = { ...cur, qty: cur.qty + line.qty }
+        next[idx] = {
+          ...cur,
+          qty: cur.qty + line.qty,
+          unitPrice: line.unitPrice,
+          sku: line.sku,
+          imageUrl: line.imageUrl,
+          colorName: line.colorName,
+          variantLabel: line.variantLabel,
+        }
         return next
       }
       return [...base, { ...line, key }]

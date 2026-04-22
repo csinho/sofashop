@@ -45,10 +45,23 @@ export function OrdersPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'list' | 'kanban'>('list')
+  const [isMobile, setIsMobile] = useState(false)
 
   const status = params.get('status') ?? ''
   const pay = params.get('pay') ?? ''
   const q = params.get('q') ?? ''
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)')
+    const onChange = () => setIsMobile(mql.matches)
+    onChange()
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    if (isMobile && view === 'kanban') setView('list')
+  }, [isMobile, view])
 
   useEffect(() => {
     let alive = true
@@ -133,19 +146,21 @@ export function OrdersPage() {
             <List className="h-4 w-4" />
             Lista
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className={cn(
-              'rounded-lg px-3 py-1.5',
-              view === 'kanban' ? 'bg-brand-600 text-white shadow-sm hover:bg-brand-700' : 'text-ink-600 hover:bg-ink-50',
-            )}
-            onClick={() => setView('kanban')}
-            doneToast="Quadro Kanban ativado."
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Kanban
-          </Button>
+          {!isMobile ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className={cn(
+                'rounded-lg px-3 py-1.5',
+                view === 'kanban' ? 'bg-brand-600 text-white shadow-sm hover:bg-brand-700' : 'text-ink-600 hover:bg-ink-50',
+              )}
+              onClick={() => setView('kanban')}
+              doneToast="Visualização em quadro ativada."
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Quadro
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -206,7 +221,7 @@ export function OrdersPage() {
         </div>
       </Card>
 
-      {view === 'kanban' ? (
+      {view === 'kanban' && !isMobile ? (
         loading ? (
           <p className="shrink-0 text-sm text-ink-500">Carregando…</p>
         ) : (
@@ -267,7 +282,51 @@ export function OrdersPage() {
         </div>
         )
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <>
+          <div className="space-y-3 md:hidden">
+            {loading ? (
+              <Card>
+                <p className="text-sm text-ink-500">Carregando…</p>
+              </Card>
+            ) : rows.length === 0 ? (
+              <Card>
+                <p className="text-sm text-ink-500">Nenhum pedido encontrado.</p>
+              </Card>
+            ) : (
+              rows.map((r) => {
+                const c = Array.isArray(r.customers) ? r.customers[0] : r.customers
+                return (
+                  <Link key={r.id} to={`/admin/pedidos/${r.id}`} className="block">
+                    <Card className="space-y-3 p-4 transition hover:border-brand-200 hover:shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-ink-900">{r.order_number}</p>
+                          <p className="text-xs text-ink-500">{formatDateTime(r.created_at)}</p>
+                        </div>
+                        <span className={cn('inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium', STATUS_STYLE[r.status])}>
+                          {ORDER_STATUS_LABEL[r.status]}
+                        </span>
+                      </div>
+                      <div className="space-y-0.5 text-sm text-ink-700">
+                        <p className="font-medium text-ink-900">{c?.full_name || 'Sem cliente'}</p>
+                        <p>{c?.phone || '—'}</p>
+                        {c?.phone_secondary?.trim() ? <p className="text-xs text-ink-500">{c.phone_secondary}</p> : null}
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-ink-500">{PAYMENT_LABEL[r.payment_kind]}</p>
+                          <p className="text-lg font-bold text-ink-900">{formatCurrency(Number(r.total))}</p>
+                        </div>
+                        <span className="text-sm font-semibold text-brand-700">Abrir</span>
+                      </div>
+                    </Card>
+                  </Link>
+                )
+              })
+            )}
+          </div>
+
+          <Card className="hidden overflow-x-auto p-0 md:block">
           {loading ? (
             <p className="p-6 text-sm text-ink-500">Carregando…</p>
           ) : (
@@ -317,7 +376,8 @@ export function OrdersPage() {
               </tbody>
             </table>
           )}
-        </Card>
+          </Card>
+        </>
       )}
     </div>
   )

@@ -11,3 +11,71 @@
     @apply bg-ink-50 text-ink-800 font-sans;
   }
 }
+
+@layer components {
+  @keyframes cart-bump {
+    0% {
+      transform: scale(1) rotate(0deg);
+    }
+    20% {
+      transform: scale(1.08) rotate(-8deg);
+    }
+    45% {
+      transform: scale(1.08) rotate(8deg);
+    }
+    70% {
+      transform: scale(1.03) rotate(-4deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  .cart-bump {
+    animation: cart-bump 0.7s ease-in-out;
+  }
+
+  .catalog-banner-curved {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  
+  .catalog-banner-curved::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: #fafbfd;
+    z-index: 15;
+    pointer-events: none;
+  }
+  
+  .catalog-banner-curved::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -118px;
+    width: 160%;
+    height: 154px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: #fafbfd;
+    z-index: 16;
+    pointer-events: none;
+  }
+  
+  @media (min-width: 768px) {
+    .catalog-banner-curved::before {
+      height: 4px;
+    }
+  
+    .catalog-banner-curved::after {
+      bottom: -143px;
+      width: 145%;
+      height: 184px;
+    }
+  }
+}

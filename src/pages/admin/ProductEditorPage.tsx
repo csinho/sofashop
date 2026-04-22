@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { ArrowLeft, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
@@ -95,6 +96,11 @@ export function ProductEditorPage() {
   const draftKey = `${DRAFT_PREFIX}${isNew ? 'novo' : id}`
 
   const autoSlug = useMemo(() => slugify(name), [name])
+  const [createStep, setCreateStep] = useState(0)
+  const createSteps = ['Dados', 'Preço', 'Mídia', 'Variações', 'Revisão']
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const markDirty = useCallback(() => {
     dirtyRef.current = true
@@ -259,6 +265,13 @@ export function ProductEditorPage() {
   }, [store.id, id, isNew, draftKey, loadVariants])
 
   const visibleCount = existingImgs.filter((i) => !removeImgIds.has(i.id)).length + pendingFiles.length
+  const pendingPreviewUrls = useMemo(() => pendingFiles.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })), [pendingFiles])
+
+  useEffect(() => {
+    return () => {
+      pendingPreviewUrls.forEach((p) => URL.revokeObjectURL(p.url))
+    }
+  }, [pendingPreviewUrls])
 
   function onPickFiles(files: FileList | null) {
     if (!files?.length) return
@@ -344,7 +357,7 @@ export function ProductEditorPage() {
         sessionStorage.removeItem(draftKey)
         dirtyRef.current = false
         notifyOk('Produto criado.')
-        nav(`/admin/produtos/${pid}`)
+        nav('/admin/produtos')
       } else {
         const { error } = await sb.from('products').update(row).eq('id', id!).eq('store_id', store.id)
         if (error) throw error
@@ -437,6 +450,49 @@ export function ProductEditorPage() {
     }
   }
 
+  async function onDeleteProduct() {
+    if (isNew || !id) return
+    if (deleteConfirmName.trim() !== name.trim()) {
+      notifyErr('Digite o nome do produto exatamente para confirmar.')
+      return
+    }
+    setDeleting(true)
+    const sb = getSupabaseBrowserClient()
+    try {
+      const { data: variantRows } = await sb.from('product_variants').select('id').eq('product_id', id)
+      const variantIds = (variantRows ?? []).map((v) => v.id as string)
+      const { data: imgs } = await sb.from('product_images').select('id, url').eq('product_id', id)
+      const { data: variantImgs } = variantIds.length
+        ? await sb.from('variant_images').select('id, url').in('variant_id', variantIds)
+        : { data: [] as { id: string; url: string }[] }
+
+      const pathsToRemove = [
+        ...((imgs as ImgRow[] | null) ?? []).map((im) => pathFromAssetUrl(im.url)).filter(Boolean),
+        ...(((variantImgs as { id: string; url: string }[] | null) ?? []).map((im) => pathFromAssetUrl(im.url)).filter(Boolean) as string[]),
+      ] as string[]
+
+      if (pathsToRemove.length) {
+        await sb.storage.from('store-assets').remove(pathsToRemove)
+      }
+
+      if (variantIds.length) {
+        await sb.from('variant_images').delete().in('variant_id', variantIds)
+      }
+      await sb.from('product_variants').delete().eq('product_id', id)
+      await sb.from('product_images').delete().eq('product_id', id)
+      const { error } = await sb.from('products').delete().eq('id', id).eq('store_id', store.id)
+      if (error) throw error
+
+      notifyOk('Produto excluído com sucesso.')
+      setDeleteOpen(false)
+      nav('/admin/produtos')
+    } catch (err: unknown) {
+      notifyErr(err instanceof Error ? err.message : 'Erro ao excluir produto')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   function startEdit(v: VariantRow) {
     setEditVid(v.id)
     setEvName(v.name)
@@ -447,113 +503,201 @@ export function ProductEditorPage() {
   }
 
   if (loading) return <p className="text-sm text-ink-500">Carregando produto…</p>
+  const showStep = (index: number) => createStep === index
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <Link to="/admin/produtos" className="text-sm font-medium text-brand-700 hover:underline">
-          ← Voltar
+    <div className="mx-auto w-full max-w-4xl space-y-5">
+      <div className="space-y-3">
+        <Link
+          to="/admin/produtos"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para produtos
         </Link>
+        <div>
+          <h2 className="font-display text-2xl font-semibold text-ink-900">{isNew ? 'Criar produto' : 'Editar produto'}</h2>
+          <p className="text-sm text-ink-600">
+            {isNew
+              ? 'Preencha os dados principais e salve para liberar variações.'
+              : 'Atualize informações, imagens e variações do produto.'}
+          </p>
+        </div>
       </div>
-      <h2 className="font-display text-2xl font-semibold text-ink-900">{isNew ? 'Novo produto' : 'Editar produto'}</h2>
 
       <form
-        className="space-y-6"
+        className="space-y-6 pb-24 md:pb-0"
         onSubmit={onSave}
         onChange={() => {
           markDirty()
         }}
       >
-        <Card className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-ink-600">Nome</label>
-            <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Slug (URL)</label>
-            <Input className="mt-1" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={autoSlug} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">SKU</label>
-            <Input className="mt-1" value={sku} onChange={(e) => setSku(e.target.value)} required />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Categoria</label>
-            <Select className="mt-1" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
+        <Card className="space-y-3 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+            Etapa {createStep + 1} de {createSteps.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {createSteps.map((label, index) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-semibold ${
+                    createStep === index ? 'bg-brand-600 text-white' : 'bg-ink-100 text-ink-600'
+                  }`}
+                  onClick={() => setCreateStep(index)}
+                >
+                  {label}
+                </button>
               ))}
-            </Select>
+            </div>
+            {!isNew ? (
+              <button
+                type="button"
+                className="ml-auto whitespace-nowrap rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-200"
+                onClick={() => {
+                  setDeleteConfirmName('')
+                  setDeleteOpen(true)
+                }}
+              >
+                Deletar
+              </button>
+            ) : null}
           </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Subcategoria</label>
-            <Input className="mt-1" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-ink-600">Tipo / modelo</label>
-            <Select className="mt-1" value={modelType} onChange={(e) => setModelType(e.target.value)} required>
-              {modelTypes.map((m) => (
-                <option key={m.id} value={m.name}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
-            <p className="mt-1 text-xs text-ink-500">
-              Os tipos são configurados em <strong>Dados do catálogo</strong>. O valor é salvo no produto e usado nos filtros da vitrine.
-            </p>
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-ink-600">Descrição curta</label>
-            <Input className="mt-1" value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-ink-600">Descrição completa</label>
-            <Textarea className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Preço base</label>
-            <MoneyField className="mt-1" value={basePrice} onValueChange={(m) => setBasePrice(m)} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Preço promocional</label>
-            <MoneyField className="mt-1" value={promoPrice} onValueChange={(m) => setPromoPrice(m)} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Prazo entrega (dias)</label>
-            <IntegerField className="mt-1" value={deliveryDays} onValueChange={setDeliveryDays} />
-          </div>
-          <div className="md:col-span-2 grid gap-3 sm:grid-cols-3">
+        </Card>
+
+        <Card className={`grid gap-4 p-4 md:grid-cols-2 md:p-6 ${createStep === 3 ? 'hidden' : ''}`}>
+          <div className={`space-y-4 md:col-span-2 ${showStep(0) ? '' : 'hidden'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Informações básicas</p>
             <div>
-              <label className="text-xs font-medium text-ink-600">Comprimento (cm)</label>
-              <IntegerField className="mt-1" value={dimL} onValueChange={setDimL} placeholder="opcional" />
+              <label className="text-xs font-medium text-ink-600">Nome</label>
+              <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs font-medium text-ink-600">Slug (URL)</label>
+                <Input className="mt-1" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={autoSlug} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-600">SKU</label>
+                <Input className="mt-1" value={sku} onChange={(e) => setSku(e.target.value)} required />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs font-medium text-ink-600">Categoria</label>
+                <Select className="mt-1" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-600">Subcategoria</label>
+                <Input className="mt-1" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} />
+              </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-ink-600">Largura (cm)</label>
-              <IntegerField className="mt-1" value={dimW} onValueChange={setDimW} placeholder="opcional" />
+              <label className="text-xs font-medium text-ink-600">Tipo / modelo</label>
+              <Select className="mt-1" value={modelType} onChange={(e) => setModelType(e.target.value)} required>
+                {modelTypes.map((m) => (
+                  <option key={m.id} value={m.name}>
+                    {m.name}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div>
-              <label className="text-xs font-medium text-ink-600">Altura (cm)</label>
-              <IntegerField className="mt-1" value={dimH} onValueChange={setDimH} placeholder="opcional" />
+              <label className="text-xs font-medium text-ink-600">Descrição curta</label>
+              <Input className="mt-1" value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} />
             </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-              Ativo no catálogo
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
-              Destaque
-            </label>
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-ink-600">Observações internas</label>
-            <Textarea className="mt-1" value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} />
+            <div>
+              <label className="text-xs font-medium text-ink-600">Descrição completa</label>
+              <Textarea className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+            </div>
           </div>
 
-          <div className="md:col-span-2 space-y-2">
+          <div className={`space-y-4 md:col-span-2 ${showStep(1) ? '' : 'hidden'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Preço e logística</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs font-medium text-ink-600">Preço base</label>
+                <MoneyField className="mt-1" value={basePrice} onValueChange={(m) => setBasePrice(m)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-600">Preço promocional</label>
+                <MoneyField className="mt-1" value={promoPrice} onValueChange={(m) => setPromoPrice(m)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-600">Prazo entrega (dias)</label>
+                <IntegerField className="mt-1" value={deliveryDays} onValueChange={setDeliveryDays} min={1} />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="text-xs font-medium text-ink-600">Comprimento (cm)</label>
+                <IntegerField className="mt-1" value={dimL} onValueChange={setDimL} min={0} placeholder="opcional" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-600">Largura (cm)</label>
+                <IntegerField className="mt-1" value={dimW} onValueChange={setDimW} min={0} placeholder="opcional" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-600">Altura (cm)</label>
+                <IntegerField className="mt-1" value={dimH} onValueChange={setDimH} min={0} placeholder="opcional" />
+              </div>
+            </div>
+          </div>
+
+          <div className={`space-y-4 md:col-span-2 ${showStep(2) ? '' : 'hidden'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Mídia e publicação</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-ink-200 p-1.5">
+            <p className="px-2 pb-2 text-xs text-ink-500">Visibilidade no catálogo</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsActive(true)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${isActive ? 'bg-brand-600 text-white' : 'bg-white text-ink-600'}`}
+              >
+                Ativo
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsActive(false)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${!isActive ? 'bg-brand-600 text-white' : 'bg-white text-ink-600'}`}
+              >
+                Inativo
+              </button>
+            </div>
+              </div>
+              <div className="rounded-xl border border-ink-200 p-1.5">
+            <p className="px-2 pb-2 text-xs text-ink-500">Prioridade da vitrine</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFeatured(true)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${isFeatured ? 'bg-amber-500 text-white' : 'bg-white text-ink-600'}`}
+              >
+                Destaque
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFeatured(false)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${!isFeatured ? 'bg-ink-200 text-ink-700' : 'bg-white text-ink-600'}`}
+              >
+                Normal
+              </button>
+            </div>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Observações internas</label>
+              <Textarea className="mt-1" value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-2 rounded-xl border border-ink-100 bg-ink-50/50 p-3">
             <label className="text-xs font-medium text-ink-600">Imagens do produto (máx. {MAX_IMAGES})</label>
             <p className="text-xs text-ink-500">
               Imagens extras aparecem no catálogo em carrossel. Você pode remover imagens existentes antes de salvar.
@@ -565,7 +709,7 @@ export function ProductEditorPage() {
               type="file"
               multiple
               accept="image/*"
-              className="block w-full text-sm"
+              className="block w-full rounded-lg border border-dashed border-ink-300 bg-white p-3 text-sm"
               onChange={(e) => onPickFiles(e.target.files)}
             />
             {!isNew ? (
@@ -585,21 +729,61 @@ export function ProductEditorPage() {
               </ul>
             ) : null}
             {pendingFiles.length ? (
-              <p className="text-xs text-ink-600">
+              <p className="inline-flex items-center gap-1 text-xs text-ink-600">
+                <ImagePlus className="h-3.5 w-3.5" />
                 Novos arquivos: {pendingFiles.map((f) => f.name).join(', ')}
               </p>
             ) : null}
+            </div>
+          </div>
+
+          <div className={`md:col-span-2 ${showStep(4) ? '' : 'hidden'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Revisão</p>
+            <div className="mt-2 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm text-ink-700">
+              <p>
+                <strong>Produto:</strong> {name || '—'}
+              </p>
+              <p>
+                <strong>SKU:</strong> {sku || '—'}
+              </p>
+              <p>
+                <strong>Preço base:</strong> {basePrice ? `R$ ${basePrice}` : '—'}
+              </p>
+              <p>
+                <strong>Categoria:</strong> {categories.find((c) => c.id === categoryId)?.name ?? '—'}
+              </p>
+              <p>
+                <strong>Imagens neste envio:</strong> {visibleCount}/{MAX_IMAGES}
+              </p>
+              {visibleCount > 0 ? (
+                <div className="mt-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">Preview das imagens</p>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {existingImgs
+                      .filter((im) => !removeImgIds.has(im.id))
+                      .map((im) => (
+                        <img key={im.id} src={im.url} alt="" className="h-20 w-full rounded-lg object-cover ring-1 ring-ink-200" />
+                      ))}
+                    {pendingPreviewUrls.map((p) => (
+                      <img key={p.url} src={p.url} alt={p.name} className="h-20 w-full rounded-lg object-cover ring-1 ring-ink-200" />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </Card>
 
-        {!isNew ? (
-          <Card className="space-y-4">
+        <Card className={`space-y-4 ${showStep(3) ? '' : 'hidden'}`}>
             <div>
               <h3 className="font-display text-lg font-semibold text-ink-900">Variações do produto</h3>
               <p className="mt-1 text-sm text-ink-600">
                 Uma <strong>variação</strong> é uma opção de venda do mesmo produto: outra cor, outro tecido ou preço diferente.
                 O cliente escolhe a variação no catálogo; o preço pode ser ajustado sem criar outro produto.
               </p>
+              {isNew ? (
+                <p className="mt-2 text-xs text-amber-700">Salve o produto para habilitar o cadastro de variações.</p>
+              ) : null}
             </div>
 
             {variants.length > 0 ? (
@@ -711,18 +895,88 @@ export function ProductEditorPage() {
                   <MoneyField className="mt-1" value={vPrice} onValueChange={(m) => setVPrice(m)} />
                 </div>
               </div>
-              <Button type="button" className="mt-3" variant="secondary" onClick={() => void addVariant()}>
+              <Button
+                type="button"
+                className="mt-3 w-full sm:w-auto"
+                variant="secondary"
+                onClick={() => void addVariant()}
+                disabled={isNew}
+              >
                 Adicionar variação
               </Button>
               <p className="mt-2 text-xs text-ink-500">Cadastre cores em Dados do catálogo → Cores.</p>
             </div>
           </Card>
-        ) : null}
 
-        <Button type="submit" loading={saving}>
-          Salvar produto
-        </Button>
+        <div className="flex items-center justify-between gap-3">
+          {createStep > 0 ? (
+            <Button type="button" variant="secondary" className="flex-1 md:flex-none" onClick={() => setCreateStep((s) => Math.max(0, s - 1))}>
+              Voltar etapa
+            </Button>
+          ) : (
+            <div className="flex-1 md:hidden" />
+          )}
+          {createStep < createSteps.length - 1 ? (
+            <Button type="button" className="flex-1 md:flex-none" onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}>
+              Próxima etapa
+            </Button>
+          ) : createStep === createSteps.length - 1 ? (
+            <Button type="submit" loading={saving} className="hidden md:inline-flex md:ml-auto">
+              Salvar produto
+            </Button>
+          ) : null}
+        </div>
+
+        <div
+          className={`fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden ${
+            createStep !== createSteps.length - 1 ? 'hidden' : ''
+          }`}
+        >
+          <Button type="submit" loading={saving} className="w-full">
+            Salvar produto
+          </Button>
+        </div>
       </form>
+
+      {deleteOpen ? (
+        <div className="fixed inset-0 z-50 bg-ink-900/40" onClick={() => setDeleteOpen(false)}>
+          <div
+            className="absolute left-1/2 top-1/2 w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-xl font-semibold text-ink-900">Excluir produto</h3>
+            <p className="mt-2 text-sm text-ink-600">
+              Esta ação não pode ser desfeita. Para confirmar, digite exatamente o nome do produto:
+            </p>
+            <p className="mt-1 text-sm text-ink-900">
+              <strong>{name || '—'}</strong>
+            </p>
+            <div className="mt-4">
+              <label className="text-xs font-medium text-ink-600">Confirmação por nome</label>
+              <Input
+                className="mt-1"
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder="Digite o nome exato do produto"
+              />
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setDeleteOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                loading={deleting}
+                disabled={deleteConfirmName.trim() !== name.trim()}
+                onClick={() => void onDeleteProduct()}
+              >
+                Excluir produto
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

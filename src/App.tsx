@@ -6,7 +6,7 @@ import { LandingPage } from '@/pages/marketing/LandingPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterStorePage } from '@/pages/auth/RegisterStorePage'
 import { CatalogLayout } from '@/pages/public/CatalogLayout'
-import { CatalogPage } from '@/pages/public/CatalogPage'
+import { CatalogPageModern } from '@/pages/public/CatalogPageModern'
 import { ProductDetailPage } from '@/pages/public/ProductDetailPage'
 import { CartPage } from '@/pages/public/CartPage'
 import { CheckoutPage } from '@/pages/public/CheckoutPage'
@@ -42,7 +42,7 @@ export default function App() {
             <Route path="/cadastro" element={<RegisterStorePage />} />
 
             <Route path="/loja/:slug" element={<CatalogLayout />}>
-              <Route index element={<CatalogPage />} />
+              <Route index element={<CatalogPageModern />} />
               <Route path="produto/:productSlug" element={<ProductDetailPage />} />
               <Route path="carrinho" element={<CartPage />} />
               <Route path="checkout" element={<CheckoutPage />} />

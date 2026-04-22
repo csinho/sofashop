@@ -363,10 +363,17 @@ export function CheckoutPage() {
         <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-ink-600">Total</p>
-            <p className="text-2xl font-bold text-ink-900">{formatCurrency(subtotal)}</p>
+            <p className="text-2xl font-bold" style={{ color: '#000000' }}>
+              {formatCurrency(subtotal)}
+            </p>
           </div>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
-          <Button type="submit" variant="catalog" loading={loading} className="px-8 py-3">
+          <Button
+            type="submit"
+            variant="catalog"
+            loading={loading}
+            className="bg-[var(--cat-primary)] px-8 py-3 hover:opacity-95 focus-visible:outline-[var(--cat-primary)]"
+          >
             Enviar pedido
           </Button>
         </Card>

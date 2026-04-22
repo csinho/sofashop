@@ -38,7 +38,12 @@ export const IntegerField = forwardRef<HTMLInputElement, Props>(function Integer
         }
         const parsed = e.target.valueAsNumber
         if (!Number.isFinite(parsed)) return
-        onValueChange(String(Math.trunc(parsed)))
+        let next = Math.trunc(parsed)
+        const minNum = typeof min === 'number' ? min : Number(min)
+        const maxNum = typeof max === 'number' ? max : Number(max)
+        if (Number.isFinite(minNum)) next = Math.max(next, minNum)
+        if (Number.isFinite(maxNum)) next = Math.min(next, maxNum)
+        onValueChange(String(next))
       }}
       {...props}
     />

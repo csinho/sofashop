@@ -7,9 +7,18 @@ type Props = {
   alt?: string
   className?: string
   accentVar?: string
+  enableLightbox?: boolean
+  compactArrows?: boolean
 }
 
-export function ProductImageGallery({ urls, alt = '', className, accentVar = '--cat-accent' }: Props) {
+export function ProductImageGallery({
+  urls,
+  alt = '',
+  className,
+  accentVar = '--cat-accent',
+  enableLightbox = true,
+  compactArrows = false,
+}: Props) {
   const list = urls.filter(Boolean)
   const [idx, setIdx] = useState(0)
   const [lightbox, setLightbox] = useState(false)
@@ -50,37 +59,49 @@ export function ProductImageGallery({ urls, alt = '', className, accentVar = '--
   return (
     <>
       <div className={cn('relative overflow-hidden rounded-3xl bg-ink-100 ring-1 ring-ink-200/80', className)}>
-        <button
-          type="button"
-          className="relative block aspect-square w-full"
-          onClick={() => setLightbox(true)}
-          aria-label="Ampliar imagem"
-        >
-          <img src={list[idx]} alt={alt} className="h-full w-full object-cover" />
-        </button>
+        {enableLightbox ? (
+          <button
+            type="button"
+            className="relative block aspect-square w-full"
+            onClick={() => setLightbox(true)}
+            aria-label="Ampliar imagem"
+          >
+            <img src={list[idx]} alt={alt} className="h-full w-full object-cover" />
+          </button>
+        ) : (
+          <div className="relative block aspect-square w-full">
+            <img src={list[idx]} alt={alt} className="h-full w-full object-cover" />
+          </div>
+        )}
         {list.length > 1 ? (
           <>
             <button
               type="button"
-              className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-800 shadow-md backdrop-blur transition hover:bg-white"
+              className={cn(
+                'absolute left-2 top-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-800 shadow-md backdrop-blur transition hover:bg-white',
+                compactArrows ? 'flex h-8 w-8' : 'flex h-10 w-10',
+              )}
               onClick={(e) => {
                 e.stopPropagation()
                 go(-1)
               }}
               aria-label="Anterior"
             >
-              <ChevronLeft className="h-6 w-6" />
+              <ChevronLeft className={compactArrows ? 'h-4 w-4' : 'h-6 w-6'} />
             </button>
             <button
               type="button"
-              className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-800 shadow-md backdrop-blur transition hover:bg-white"
+              className={cn(
+                'absolute right-2 top-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-800 shadow-md backdrop-blur transition hover:bg-white',
+                compactArrows ? 'flex h-8 w-8' : 'flex h-10 w-10',
+              )}
               onClick={(e) => {
                 e.stopPropagation()
                 go(1)
               }}
               aria-label="Próxima"
             >
-              <ChevronRight className="h-6 w-6" />
+              <ChevronRight className={compactArrows ? 'h-4 w-4' : 'h-6 w-6'} />
             </button>
             <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
               {list.map((u, i) => (
@@ -104,7 +125,7 @@ export function ProductImageGallery({ urls, alt = '', className, accentVar = '--
         ) : null}
       </div>
 
-      {lightbox ? (
+      {enableLightbox && lightbox ? (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-900/85 p-4 backdrop-blur-sm"
           role="dialog"

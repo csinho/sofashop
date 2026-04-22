@@ -196,7 +196,7 @@ export function FinancePage() {
           <p className="mt-2 text-2xl font-bold text-ink-900">{formatCurrency(agg.totalSold)}</p>
         </Card>
         <Card>
-          <p className="text-xs font-medium uppercase text-ink-500">Pedidos em pipeline pago / produção</p>
+          <p className="text-xs font-medium uppercase text-ink-500">Pedidos em andamento (pagos e em produção)</p>
           <p className="mt-2 text-2xl font-bold text-emerald-700">{formatCurrency(agg.paidSum)}</p>
         </Card>
         <Card>

@@ -68,7 +68,48 @@ export function CustomersPage() {
           placeholder="Digite para filtrar…"
         />
       </Card>
-      <Card className="overflow-x-auto p-0">
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <Card>
+            <p className="text-sm text-ink-500">Carregando…</p>
+          </Card>
+        ) : rows.length === 0 ? (
+          <Card>
+            <p className="text-sm text-ink-500">Nenhum cliente encontrado.</p>
+          </Card>
+        ) : (
+          rows.map((r) => {
+            const ords = r.orders ?? []
+            const spent = ords.reduce((s, o) => s + Number(o.total), 0)
+            const recurring = ords.length > 1
+            return (
+              <Card key={r.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-ink-900">{r.full_name}</p>
+                    {recurring ? (
+                      <span className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">Recorrente</span>
+                    ) : null}
+                  </div>
+                  <Link className="text-sm font-semibold text-brand-700 hover:underline" to={`/admin/clientes/${r.id}`}>
+                    Ver
+                  </Link>
+                </div>
+                <div className="space-y-0.5 text-sm text-ink-700">
+                  <p>{r.phone}</p>
+                  {r.phone_secondary?.trim() ? <p className="text-xs text-ink-500">{r.phone_secondary}</p> : null}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-ink-600">Pedidos: <strong className="text-ink-900">{ords.length}</strong></p>
+                  <p className="font-semibold text-ink-900">{formatCurrency(spent)}</p>
+                </div>
+              </Card>
+            )
+          })
+        )}
+      </div>
+
+      <Card className="hidden overflow-x-auto p-0 md:block">
         {loading ? (
           <p className="p-6 text-sm text-ink-500">Carregando…</p>
         ) : (

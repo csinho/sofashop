@@ -132,7 +132,7 @@ export function OrderDetailPage() {
     String(snap.phone_secondary ?? '').trim() || String(cust?.phone_secondary ?? '').trim() || ''
 
   return (
-    <div className="w-full max-w-full space-y-6">
+    <div className="w-full max-w-full space-y-6 pb-24 md:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link to="/admin/pedidos" className="text-sm font-medium text-brand-700 hover:underline">
@@ -141,7 +141,7 @@ export function OrderDetailPage() {
           <h2 className="mt-2 font-display text-2xl font-semibold text-ink-900 lg:text-3xl">{order.order_number}</h2>
           <p className="text-sm text-ink-600">{formatDateTime(order.created_at)}</p>
         </div>
-        <Button variant="secondary" onClick={onPdf}>
+        <Button className="hidden md:inline-flex" onClick={onPdf}>
           Gerar PDF
         </Button>
       </div>
@@ -194,7 +194,33 @@ export function OrderDetailPage() {
         </ul>
       </Card>
 
-      <Card className="w-full overflow-x-auto">
+      <div className="space-y-3 md:hidden">
+        <h3 className="font-display text-lg font-semibold text-ink-900">Itens</h3>
+        {order.order_items.map((i) => (
+          <Card key={i.id} className="space-y-2 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-semibold text-ink-900">{i.product_name}</p>
+              <p className="text-sm font-bold text-ink-900">{formatCurrency(Number(i.line_total))}</p>
+            </div>
+            <p className="text-xs text-ink-500">SKU {i.sku}</p>
+            <div className="flex items-center justify-between text-sm text-ink-700">
+              <span>Qtd: {i.quantity}</span>
+              <span>Unit.: {formatCurrency(Number(i.unit_price))}</span>
+            </div>
+            {i.options_snapshot?.color || i.options_snapshot?.variant ? (
+              <p className="text-xs text-ink-500">
+                {i.options_snapshot?.color ? `Cor: ${String(i.options_snapshot.color)} ` : ''}
+                {i.options_snapshot?.variant ? `Var.: ${String(i.options_snapshot.variant)}` : ''}
+              </p>
+            ) : null}
+          </Card>
+        ))}
+        <Card className="p-4">
+          <p className="text-right text-lg font-bold text-ink-900">Total {formatCurrency(Number(order.total))}</p>
+        </Card>
+      </div>
+
+      <Card className="hidden w-full overflow-x-auto md:block">
         <h3 className="font-display text-lg font-semibold text-ink-900">Itens</h3>
         <table className="mt-4 min-w-full text-sm">
           <thead>
@@ -233,6 +259,12 @@ export function OrderDetailPage() {
           <p className="mt-2 text-sm text-ink-700">{order.notes}</p>
         </Card>
       ) : null}
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-white/95 p-3 backdrop-blur md:hidden">
+        <Button className="w-full py-3 text-base" onClick={onPdf}>
+          Gerar PDF
+        </Button>
+      </div>
     </div>
   )
 }

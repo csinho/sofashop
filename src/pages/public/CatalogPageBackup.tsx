@@ -18,7 +18,7 @@ import {
 } from '@/services/catalogPublicService'
 import type { CatalogOutletCtx } from '@/pages/public/catalogTypes'
 
-export function CatalogPage() {
+export function CatalogPageBackup() {
   const { store, slug } = useOutletContext<CatalogOutletCtx>()
   const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>([])
   const [modelTypes, setModelTypes] = useState<{ name: string }[]>([])
@@ -158,7 +158,7 @@ export function CatalogPage() {
                 const basePrice = Number(p.base_price ?? 0)
                 const promoPrice = p.promo_price != null ? Number(p.promo_price) : null
                 const hasPromo = promoPrice != null && promoPrice > 0 && promoPrice < basePrice
-                const price = hasPromo ? promoPrice! : effectivePrice(p as never)
+                const price = hasPromo ? promoPrice : effectivePrice(p as never)
                 const slugProduct = String(p.slug)
                 const feat = Boolean(p.is_featured)
                 return (
@@ -177,17 +177,17 @@ export function CatalogPage() {
                       ) : null}
                     </div>
                     <Link to={`/loja/${slug}/produto/${slugProduct}`} className="block p-4">
-                        <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
-                          {(p.categories as { name?: string } | null)?.name}
-                        </p>
-                        <h2 className="mt-1 font-display text-lg font-semibold text-[var(--cat-primary)]">{String(p.name)}</h2>
-                        <p className="mt-1 line-clamp-2 text-xs text-ink-600">{String(p.short_description ?? '')}</p>
-                        <div className="mt-3">
-                          <p className="text-lg font-bold text-[var(--cat-accent)]">{formatCurrency(price)}</p>
-                          {hasPromo ? (
-                            <p className="text-sm text-ink-400 line-through">{formatCurrency(basePrice)}</p>
-                          ) : null}
-                        </div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
+                        {(p.categories as { name?: string } | null)?.name}
+                      </p>
+                      <h2 className="mt-1 font-display text-lg font-semibold text-[var(--cat-primary)]">{String(p.name)}</h2>
+                      <p className="mt-1 line-clamp-2 text-xs text-ink-600">{String(p.short_description ?? '')}</p>
+                      <div className="mt-3">
+                        <p className="text-lg font-bold text-[var(--cat-accent)]">{formatCurrency(price)}</p>
+                        {hasPromo ? (
+                          <p className="text-sm text-ink-400 line-through">{formatCurrency(basePrice)}</p>
+                        ) : null}
+                      </div>
                     </Link>
                   </Card>
                 )

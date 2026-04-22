@@ -22,7 +22,7 @@ type Variant = {
 }
 
 export function ProductDetailPage() {
-  const { store, slug } = useOutletContext<CatalogOutletCtx>()
+  const { store, slug, setBannerImageUrl } = useOutletContext<CatalogOutletCtx>()
   const { productSlug } = useParams<{ productSlug: string }>()
   const nav = useNavigate()
   const { addLine } = useCart()
@@ -40,9 +40,7 @@ export function ProductDetailPage() {
         const p = await fetchCatalogProductBySlug(store.id, productSlug)
         if (!alive) return
         setProduct(p as Record<string, unknown> | null)
-        const vars = ((p as Record<string, unknown> | null)?.product_variants as Variant[] | undefined) ?? []
-        const first = vars.find((v) => v.is_active)
-        setVariantId(first?.id ?? null)
+        setVariantId(null)
       } finally {
         if (alive) setLoading(false)
       }
@@ -55,7 +53,7 @@ export function ProductDetailPage() {
   const variants = (product?.product_variants as Variant[] | undefined) ?? []
   const activeVariants = variants.filter((v) => v.is_active)
 
-  const selected = activeVariants.find((v) => v.id === variantId) ?? activeVariants[0]
+  const selected = activeVariants.find((v) => v.id === variantId) ?? null
 
   const basePrice = useMemo(() => {
     if (!product) return 0
@@ -63,9 +61,12 @@ export function ProductDetailPage() {
   }, [product])
 
   const unitPrice = useMemo(() => {
-    if (selected?.price_override != null) return Math.min(basePrice, selected.price_override)
+    if (selected?.price_override != null) return selected.price_override
     return basePrice
   }, [basePrice, selected])
+  const productBasePrice = Number(product?.base_price ?? 0)
+  const productPromoPrice = product?.promo_price != null ? Number(product.promo_price) : null
+  const hasProductPromo = selected == null && productPromoPrice != null && productPromoPrice > 0 && productPromoPrice < productBasePrice
 
   const images = useMemo(() => {
     const fromVariant = selected?.variant_images?.slice().sort((a, b) => a.sort_order - b.sort_order) ?? []
@@ -74,6 +75,14 @@ export function ProductDetailPage() {
       (product?.product_images as { url: string; sort_order: number }[] | undefined)?.slice().sort((a, b) => a.sort_order - b.sort_order) ?? []
     return pis.map((i) => i.url)
   }, [product, selected])
+
+  useEffect(() => {
+    const next = images[0] || null
+    setBannerImageUrl(next)
+    return () => {
+      setBannerImageUrl(null)
+    }
+  }, [images, setBannerImageUrl])
 
   if (loading) return <div className="p-10 text-center text-ink-500">Carregando…</div>
   if (!product) {
@@ -116,14 +125,11 @@ export function ProductDetailPage() {
       variantLabel: selected?.name,
     })
     notifyOk('Produto adicionado ao carrinho.')
-    nav(`/loja/${slug}/carrinho`)
+    nav(`/loja/${slug}`)
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-        <Link to={`/loja/${slug}`} className="text-sm font-medium text-[var(--cat-primary)] hover:underline">
-          ← Catálogo
-        </Link>
+    <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-8">
       <div className="mt-6 grid gap-8 lg:grid-cols-2">
         <div>
           <ProductImageGallery urls={images} alt={String(product.name)} />
@@ -134,9 +140,13 @@ export function ProductDetailPage() {
           </p>
           <h1 className="mt-2 font-display text-3xl font-semibold text-[var(--cat-primary)]">{String(product.name)}</h1>
           <p className="mt-2 text-sm text-ink-600">{String(product.short_description ?? '')}</p>
-          <p className="mt-4 text-3xl font-bold text-[var(--cat-accent)]">{formatCurrency(unitPrice)}</p>
-          {product.promo_price != null ? (
-            <p className="text-sm text-ink-400 line-through">{formatCurrency(Number(product.base_price))}</p>
+          <p className="mt-4 text-3xl font-bold" style={{ color: '#000000' }}>
+            {formatCurrency(unitPrice)}
+          </p>
+          {hasProductPromo ? (
+            <p className="text-sm line-through" style={{ color: '#9fa2ad' }}>
+              {formatCurrency(productBasePrice)}
+            </p>
           ) : null}
 
           {hasDims ? (
@@ -164,8 +174,22 @@ export function ProductDetailPage() {
             <div className="mt-6">
               <p className="text-xs font-medium text-ink-600">Cor / variação</p>
               <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVariantId(null)
+                    notifyInfo('Preço normal selecionado.')
+                  }}
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                    selected == null
+                      ? 'border-[var(--cat-accent)] bg-[var(--cat-accent)]/10 text-ink-900'
+                      : 'border-ink-200 bg-white text-ink-700 hover:border-ink-300'
+                  }`}
+                >
+                  Sem variação
+                </button>
                 {activeVariants.map((v) => {
-                  const active = v.id === (selected?.id ?? variantId)
+                  const active = v.id === variantId
                   return (
                     <button
                       key={v.id}
@@ -191,7 +215,7 @@ export function ProductDetailPage() {
             </div>
           ) : null}
 
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-6 hidden items-center gap-3 md:flex">
             <label className="text-xs font-medium text-ink-600">Qtd</label>
             <IntegerField
               className="w-20"
@@ -201,7 +225,11 @@ export function ProductDetailPage() {
             />
           </div>
 
-          <Button variant="catalog" className="mt-8 w-full max-w-sm py-3 text-base" onClick={handleAdd}>
+          <Button
+            variant="catalog"
+            className="mt-8 hidden w-full max-w-sm bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)] md:inline-flex"
+            onClick={handleAdd}
+          >
             Adicionar ao carrinho
           </Button>
 
@@ -210,6 +238,37 @@ export function ProductDetailPage() {
             <p className="whitespace-pre-wrap">{String(product.description ?? '')}</p>
             <p className="text-xs text-ink-500">Prazo estimado: {String(product.delivery_days)} dias úteis</p>
           </Card>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 p-3 backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-6xl items-center gap-3">
+          <div className="flex items-center rounded-2xl border border-ink-200 bg-white">
+            <button
+              type="button"
+              className="px-3 py-2 text-lg font-semibold text-ink-700"
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              aria-label="Diminuir quantidade"
+            >
+              -
+            </button>
+            <span className="min-w-10 text-center text-base font-semibold text-ink-900">{qty}</span>
+            <button
+              type="button"
+              className="px-3 py-2 text-lg font-semibold text-ink-700"
+              onClick={() => setQty((q) => q + 1)}
+              aria-label="Aumentar quantidade"
+            >
+              +
+            </button>
+          </div>
+          <Button
+            variant="catalog"
+            className="flex-1 bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)]"
+            onClick={handleAdd}
+          >
+            Adicionar ao carrinho
+          </Button>
         </div>
       </div>
     </div>

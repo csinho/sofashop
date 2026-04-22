@@ -87,36 +87,36 @@ export function DashboardPage() {
   if (loading) return <p className="text-sm text-ink-500">Carregando indicadores…</p>
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <div>
         <h2 className="font-display text-2xl font-semibold text-ink-900">Dashboard</h2>
-        <p className="text-sm text-ink-600">— Visão geral da sua loja</p>
+        <p className="text-sm text-ink-600">Visão geral da sua loja</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Produtos</p>
-          <p className="mt-2 text-3xl font-bold text-ink-900">{products}</p>
+          <p className="mt-1.5 text-2xl font-bold text-ink-900 md:text-3xl">{products}</p>
         </Card>
-        <Card>
+        <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Clientes</p>
-          <p className="mt-2 text-3xl font-bold text-ink-900">{customers}</p>
+          <p className="mt-1.5 text-2xl font-bold text-ink-900 md:text-3xl">{customers}</p>
         </Card>
-        <Card>
+        <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Pedidos</p>
-          <p className="mt-2 text-3xl font-bold text-ink-900">{orders.length}</p>
+          <p className="mt-1.5 text-2xl font-bold text-ink-900 md:text-3xl">{orders.length}</p>
         </Card>
-        <Card>
-          <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Faturamento (status pagos pipeline)</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-700">{formatCurrency(stats.totalRevenue)}</p>
+        <Card className="col-span-2 p-4 sm:col-span-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Faturamento (pedidos pagos)</p>
+          <p className="mt-1.5 text-xl font-bold text-emerald-700 md:text-2xl">{formatCurrency(stats.totalRevenue)}</p>
           <p className="mt-1 text-xs text-ink-500">Ticket médio {formatCurrency(stats.ticket)}</p>
         </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="h-80">
+        <Card className="h-72 p-4 md:h-80">
           <h3 className="font-display text-lg font-semibold text-ink-900">Pedidos por status</h3>
-          <div className="mt-4 h-64">
+          <div className="mt-3 h-56 md:mt-4 md:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={stats.statusData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
@@ -125,14 +125,14 @@ export function DashboardPage() {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card className="h-80">
+        <Card className="h-72 p-4 md:h-80">
           <h3 className="font-display text-lg font-semibold text-ink-900">Faturamento por dia</h3>
-          <div className="mt-4 h-64">
+          <div className="mt-3 h-56 md:mt-4 md:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueByDay}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -147,9 +147,10 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="p-4">
           <h3 className="font-display text-lg font-semibold text-ink-900">Pedidos recentes</h3>
-          <ul className="mt-4 divide-y divide-ink-100 text-sm">
+          {recent.length === 0 ? <p className="mt-4 text-sm text-ink-500">Ainda não há pedidos.</p> : null}
+          <ul className="mt-3 divide-y divide-ink-100 text-sm md:mt-4">
             {recent.map((o) => (
               <li key={o.id} className="flex items-center justify-between py-3">
                 <div>
@@ -166,9 +167,9 @@ export function DashboardPage() {
             ))}
           </ul>
         </Card>
-        <Card>
+        <Card className="p-4">
           <h3 className="font-display text-lg font-semibold text-ink-900">Formas de pagamento</h3>
-          <div className="mt-4 h-56">
+          <div className="mt-3 h-52 md:mt-4 md:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={payMix} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
