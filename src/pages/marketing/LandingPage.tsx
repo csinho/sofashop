@@ -1,14 +1,22 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { notifyInfo } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getDefaultDocumentTitle } from '@/lib/documentTitle'
+import { getPreferredPwaStartPath, isStandaloneDisplay } from '@/lib/pwaEntry'
 
 export function LandingPage() {
   useEffect(() => {
     document.title = getDefaultDocumentTitle()
   }, [])
+
+  if (isStandaloneDisplay()) {
+    const start = getPreferredPwaStartPath()
+    if (start) {
+      return <Navigate to={start} replace />
+    }
+  }
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-white to-ink-50">

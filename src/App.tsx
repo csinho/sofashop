@@ -22,6 +22,7 @@ import { CustomerDetailPage } from '@/pages/admin/CustomerDetailPage'
 import { FinancePage } from '@/pages/admin/FinancePage'
 import { SettingsPage } from '@/pages/admin/SettingsPage'
 import { CatalogDataPage } from '@/pages/admin/CatalogDataPage'
+import { PwaEntryHandler } from '@/components/PwaEntryHandler'
 
 function configured() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -34,6 +35,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <PwaEntryHandler />
       <AuthProvider>
         <CartProvider>
           <Routes>

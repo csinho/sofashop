@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
           display: 'standalone',
           orientation: 'any',
           scope: '/',
+          // Abre a raiz; a app redireciona o PWA (standalone) p/ /loja/... ou /admin conforme a última visita (ver LandingPage + PwaEntryHandler)
           start_url: '/',
           lang: 'pt-BR',
           categories: ['business', 'shopping'],
