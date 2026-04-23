@@ -45,8 +45,7 @@ export function LandingPage() {
             Catálogo premium para sofás, com pedido direto no WhatsApp.
           </h1>
           <p className="mt-5 text-lg text-ink-600">
-            Cada loja com seu link, produtos isolados, checkout completo, painel financeiro e PDF profissional — pronto
-            para produção com Supabase, RLS e armazenamento seguro.
+            Cada loja com seu link, produtos isolados, checkout completo, painel financeiro e PDF profissional.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link to="/cadastro" onClick={() => notifyInfo('Abrindo cadastro.')}>
