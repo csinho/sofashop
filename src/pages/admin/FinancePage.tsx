@@ -32,6 +32,7 @@ export function FinancePage() {
   const [orders, setOrders] = useState<O[]>([])
   const [loading, setLoading] = useState(true)
   const [savingCfg, setSavingCfg] = useState(false)
+  const [section, setSection] = useState<'checkout' | 'cashflow'>('checkout')
 
   const initialCfg = useMemo(() => resolveCheckoutConfig(store), [store])
   const [accepted, setAccepted] = useState<Set<PaymentKind>>(
@@ -118,118 +119,207 @@ export function FinancePage() {
     }
   }, [orders])
 
+  const cashflow = useMemo(() => {
+    const now = new Date()
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+    const receivedStatuses: OrderStatus[] = ['entregue']
+    const receivableStatuses: OrderStatus[] = ['novo', 'em_analise', 'aprovado', 'em_producao', 'pronto_entrega']
+
+    const received = orders.filter((o) => receivedStatuses.includes(o.status))
+    const receivables = orders.filter((o) => receivableStatuses.includes(o.status))
+
+    const receivedSum = received.reduce((s, o) => s + Number(o.total), 0)
+    const receivableSum = receivables.reduce((s, o) => s + Number(o.total), 0)
+
+    const monthOrders = orders.filter((o) => {
+      const d = new Date(o.created_at)
+      return d >= startMonth && d < endMonth
+    })
+
+    const monthReceived = monthOrders.filter((o) => receivedStatuses.includes(o.status)).reduce((s, o) => s + Number(o.total), 0)
+    const monthToReceive = monthOrders.filter((o) => receivableStatuses.includes(o.status)).reduce((s, o) => s + Number(o.total), 0)
+
+    const projectedBalance = receivedSum + receivableSum
+
+    return {
+      received,
+      receivables,
+      receivedSum,
+      receivableSum,
+      projectedBalance,
+      monthReceived,
+      monthToReceive,
+    }
+  }, [orders])
+
   if (loading) return <p className="text-sm text-ink-500">Carregando…</p>
 
   return (
     <div className="space-y-6">
       <h2 className="font-display text-2xl font-semibold text-ink-900">Financeiro</h2>
 
-      <Card className="space-y-4">
-        <h3 className="font-display text-lg font-semibold text-ink-900">Pagamento no checkout</h3>
-        <p className="text-sm text-ink-600">
-          Defina quais formas de pagamento o cliente pode escolher e as taxas médias da maquininha (apenas informativas no checkout).
-        </p>
-        <div className="flex flex-wrap gap-3">
-          {ALL_METHODS.map((k) => (
-            <label key={k} className="flex cursor-pointer items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm">
-              <input type="checkbox" checked={accepted.has(k)} onChange={() => toggleMethod(k)} />
-              {PAYMENT_LABEL[k]}
-            </label>
-          ))}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-xs font-medium text-ink-600">Taxa cartão crédito / parcelado (%)</label>
-            <Input
-              className="mt-1 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
-              type="number"
-              min={0}
-              max={100}
-              step={0.1}
-              inputMode="decimal"
-              value={feeCr === '' ? '' : parseDecimalPtBr(feeCr)}
-              onChange={(e) => {
-                const t = e.target.value
-                if (t === '') {
-                  setFeeCr('')
-                  return
-                }
-                const n = Number(t)
-                if (!Number.isFinite(n)) return
-                setFeeCr(sanitizeDecimalPtBr(String(n).replace('.', ','), 2))
-              }}
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Taxa cartão débito (%)</label>
-            <Input
-              className="mt-1 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
-              type="number"
-              min={0}
-              max={100}
-              step={0.1}
-              inputMode="decimal"
-              value={feeDb === '' ? '' : parseDecimalPtBr(feeDb)}
-              onChange={(e) => {
-                const t = e.target.value
-                if (t === '') {
-                  setFeeDb('')
-                  return
-                }
-                const n = Number(t)
-                if (!Number.isFinite(n)) return
-                setFeeDb(sanitizeDecimalPtBr(String(n).replace('.', ','), 2))
-              }}
-              placeholder="0"
-            />
-          </div>
-        </div>
-        <Button type="button" loading={savingCfg} onClick={() => void savePaymentConfig()}>
-          Salvar configuração de pagamento
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant={section === 'checkout' ? 'primary' : 'secondary'} onClick={() => setSection('checkout')}>
+          Configuração de pagamento
         </Button>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <p className="text-xs font-medium uppercase text-ink-500">Total vendido (todos)</p>
-          <p className="mt-2 text-2xl font-bold text-ink-900">{formatCurrency(agg.totalSold)}</p>
-        </Card>
-        <Card>
-          <p className="text-xs font-medium uppercase text-ink-500">Pedidos em andamento (pagos e em produção)</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-700">{formatCurrency(agg.paidSum)}</p>
-        </Card>
-        <Card>
-          <p className="text-xs font-medium uppercase text-ink-500">Pendentes (novo, análise, etc.)</p>
-          <p className="mt-2 text-2xl font-bold text-amber-700">{formatCurrency(agg.pendingSum)}</p>
-        </Card>
+        <Button type="button" variant={section === 'cashflow' ? 'primary' : 'secondary'} onClick={() => setSection('cashflow')}>
+          Fluxo de caixa
+        </Button>
       </div>
 
-      <Card>
-        <h3 className="font-display text-lg font-semibold text-ink-900">Total por forma de pagamento</h3>
-        <ul className="mt-4 space-y-2 text-sm">
-          {Object.entries(agg.byPay).map(([k, v]) => (
-            <li key={k} className="flex justify-between border-b border-ink-100 py-2">
-              <span>{PAYMENT_LABEL[k as PaymentKind]}</span>
-              <span className="font-semibold">{formatCurrency(v)}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      {section === 'checkout' ? (
+        <Card className="space-y-4">
+          <h3 className="font-display text-lg font-semibold text-ink-900">Pagamento no checkout</h3>
+          <p className="text-sm text-ink-600">
+            Defina quais formas de pagamento o cliente pode escolher e as taxas médias da maquininha (apenas informativas no checkout).
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {ALL_METHODS.map((k) => (
+              <label key={k} className="flex cursor-pointer items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm">
+                <input type="checkbox" checked={accepted.has(k)} onChange={() => toggleMethod(k)} />
+                {PAYMENT_LABEL[k]}
+              </label>
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-ink-600">Taxa cartão crédito / parcelado (%)</label>
+              <Input
+                className="mt-1 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                inputMode="decimal"
+                value={feeCr === '' ? '' : parseDecimalPtBr(feeCr)}
+                onChange={(e) => {
+                  const t = e.target.value
+                  if (t === '') {
+                    setFeeCr('')
+                    return
+                  }
+                  const n = Number(t)
+                  if (!Number.isFinite(n)) return
+                  setFeeCr(sanitizeDecimalPtBr(String(n).replace('.', ','), 2))
+                }}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Taxa cartão débito (%)</label>
+              <Input
+                className="mt-1 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                inputMode="decimal"
+                value={feeDb === '' ? '' : parseDecimalPtBr(feeDb)}
+                onChange={(e) => {
+                  const t = e.target.value
+                  if (t === '') {
+                    setFeeDb('')
+                    return
+                  }
+                  const n = Number(t)
+                  if (!Number.isFinite(n)) return
+                  setFeeDb(sanitizeDecimalPtBr(String(n).replace('.', ','), 2))
+                }}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <Button type="button" loading={savingCfg} onClick={() => void savePaymentConfig()}>
+            Salvar configuração de pagamento
+          </Button>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <p className="text-xs font-medium uppercase text-ink-500">Saldo projetado</p>
+              <p className="mt-2 text-2xl font-bold text-ink-900">{formatCurrency(cashflow.projectedBalance)}</p>
+              <p className="mt-1 text-xs text-ink-500">Recebido + a receber</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium uppercase text-ink-500">Contas a receber</p>
+              <p className="mt-2 text-2xl font-bold text-amber-700">{formatCurrency(cashflow.receivableSum)}</p>
+              <p className="mt-1 text-xs text-ink-500">{cashflow.receivables.length} pedidos em aberto</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium uppercase text-ink-500">Entradas recebidas</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-700">{formatCurrency(cashflow.receivedSum)}</p>
+              <p className="mt-1 text-xs text-ink-500">{cashflow.received.length} pedidos entregues</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium uppercase text-ink-500">Mês atual</p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">Recebido: {formatCurrency(cashflow.monthReceived)}</p>
+              <p className="mt-1 text-sm font-semibold text-ink-900">A receber: {formatCurrency(cashflow.monthToReceive)}</p>
+            </Card>
+          </div>
 
-      <Card>
-        <h3 className="font-display text-lg font-semibold text-ink-900">Parcelados e entrada + parcelas</h3>
-        <p className="mt-2 text-sm text-ink-600">
-          {agg.installments.length} pedidos com parcelamento registrado. Detalhes das parcelas ficam em cada pedido e no PDF.
-        </p>
-        <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto text-xs text-ink-600">
-          {agg.installments.map((o) => (
-            <li key={o.id}>
-              {formatOrderPaymentSummary(o.payment_kind, o.payment_details).join(' ')} — {ORDER_STATUS_LABEL[o.status]}
-            </li>
-          ))}
-        </ul>
-      </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <h3 className="font-display text-lg font-semibold text-ink-900">Contas a receber (pedidos)</h3>
+              <p className="mt-1 text-xs text-ink-500">Baseado nos pedidos que ainda não chegaram ao status “Entregue”.</p>
+              <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto text-sm">
+                {cashflow.receivables.map((o) => (
+                  <li key={o.id} className="rounded-lg border border-ink-100 px-3 py-2">
+                    <p className="font-medium text-ink-900">{formatCurrency(Number(o.total))}</p>
+                    <p className="text-xs text-ink-600">
+                      {ORDER_STATUS_LABEL[o.status]} • {PAYMENT_LABEL[o.payment_kind]}
+                    </p>
+                  </li>
+                ))}
+                {cashflow.receivables.length === 0 ? <li className="text-sm text-ink-500">Sem valores pendentes no momento.</li> : null}
+              </ul>
+            </Card>
+
+            <Card>
+              <h3 className="font-display text-lg font-semibold text-ink-900">Contas a pagar</h3>
+            <p className="mt-1">
+              <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Em breve</span>
+            </p>
+              <p className="mt-1 text-sm text-ink-600">
+                Esta área está preparada para controlar despesas (fornecedores, frete, comissões e custos fixos) e completar o fluxo de caixa da loja.
+              </p>
+              <div className="mt-4 rounded-xl border border-dashed border-ink-200 bg-ink-50/60 p-3">
+                <p className="text-xs text-ink-500">
+                  Próximo passo recomendado: incluir lançamentos manuais de despesas com data de vencimento e status (aberto/pago).
+                </p>
+              </div>
+            </Card>
+          </div>
+
+          <Card>
+            <h3 className="font-display text-lg font-semibold text-ink-900">Totais por forma de pagamento</h3>
+            <ul className="mt-4 space-y-2 text-sm">
+              {Object.entries(agg.byPay).map(([k, v]) => (
+                <li key={k} className="flex justify-between border-b border-ink-100 py-2">
+                  <span>{PAYMENT_LABEL[k as PaymentKind]}</span>
+                  <span className="font-semibold">{formatCurrency(v)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <Card>
+            <h3 className="font-display text-lg font-semibold text-ink-900">Parcelados e entrada + parcelas</h3>
+            <p className="mt-2 text-sm text-ink-600">
+              {agg.installments.length} pedidos com parcelamento registrado. Detalhes das parcelas ficam em cada pedido e no PDF.
+            </p>
+            <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto text-xs text-ink-600">
+              {agg.installments.map((o) => (
+                <li key={o.id}>
+                  {formatOrderPaymentSummary(o.payment_kind, o.payment_details).join(' ')} — {ORDER_STATUS_LABEL[o.status]}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

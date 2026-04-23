@@ -211,20 +211,22 @@ export function CatalogDataPage() {
 
       <Card className="space-y-4">
         <h3 className="font-display text-lg font-semibold text-ink-900">Categorias</h3>
-        <div className="flex flex-wrap gap-2">
-          <Input className="max-w-md" placeholder="Nome da nova categoria" value={catName} onChange={(e) => setCatName(e.target.value)} />
-          <Button type="button" variant="secondary" onClick={() => void addCategory()}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input className="w-full sm:max-w-md" placeholder="Nome da nova categoria" value={catName} onChange={(e) => setCatName(e.target.value)} />
+          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => void addCategory()}>
             Nova categoria
           </Button>
         </div>
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {categories.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-100 bg-ink-50/50 px-3 py-2">
+            <li key={c.id} className="rounded-xl border border-ink-100 bg-ink-50/50 p-3">
               <CategoryNameEditor cat={c} onSave={(name) => void updateCategoryName(c, name)} />
-              <span className="text-xs text-ink-400">{c.slug}</span>
-              <Button type="button" variant="ghost" className="ml-auto text-xs" onClick={() => void toggleCategory(c)}>
-                {c.is_active ? 'Ocultar' : 'Ativar'}
-              </Button>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="truncate text-xs text-ink-400">{c.slug}</span>
+                <Button type="button" variant="ghost" className="text-xs" onClick={() => void toggleCategory(c)}>
+                  {c.is_active ? 'Ocultar' : 'Ativar'}
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -237,19 +239,21 @@ export function CatalogDataPage() {
             Ex.: &quot;Sofá retrátil&quot;. O mesmo conjunto é usado no cadastro de produtos e no filtro &quot;Tipo / modelo&quot; do catálogo.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Input className="max-w-md" placeholder="Nome do tipo" value={mtName} onChange={(e) => setMtName(e.target.value)} />
-          <Button type="button" variant="secondary" onClick={() => void addModelType()}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input className="w-full sm:max-w-md" placeholder="Nome do tipo" value={mtName} onChange={(e) => setMtName(e.target.value)} />
+          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => void addModelType()}>
             Novo tipo
           </Button>
         </div>
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {modelTypes.map((m) => (
-            <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-100 px-3 py-2">
+            <li key={m.id} className="rounded-xl border border-ink-100 p-3">
               <ModelNameEditor row={m} onSave={(name) => void updateModelName(m, name)} />
-              <Button type="button" variant="ghost" className="ml-auto text-red-600" onClick={() => void removeModelType(m.id)}>
-                Remover
-              </Button>
+              <div className="mt-2 flex justify-end">
+                <Button type="button" variant="ghost" className="text-red-600" onClick={() => void removeModelType(m.id)}>
+                  Remover
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -264,9 +268,9 @@ function CategoryNameEditor({ cat, onSave }: { cat: CatRow; onSave: (name: strin
     setV(cat.name)
   }, [cat.id, cat.name])
   return (
-    <div className="flex flex-1 flex-wrap items-center gap-2">
-      <Input className="min-w-[200px] flex-1" value={v} onChange={(e) => setV(e.target.value)} />
-      <Button type="button" variant="secondary" className="text-xs" onClick={() => onSave(v)}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <Input className="w-full sm:min-w-[200px] sm:flex-1" value={v} onChange={(e) => setV(e.target.value)} />
+      <Button type="button" variant="secondary" className="w-full text-xs sm:w-auto" onClick={() => onSave(v)}>
         Salvar
       </Button>
     </div>
@@ -279,9 +283,9 @@ function ModelNameEditor({ row, onSave }: { row: ModelTypeRow; onSave: (name: st
     setV(row.name)
   }, [row.id, row.name])
   return (
-    <div className="flex flex-1 flex-wrap items-center gap-2">
-      <Input className="min-w-[200px] flex-1" value={v} onChange={(e) => setV(e.target.value)} />
-      <Button type="button" variant="secondary" className="text-xs" onClick={() => onSave(v)}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <Input className="w-full sm:min-w-[200px] sm:flex-1" value={v} onChange={(e) => setV(e.target.value)} />
+      <Button type="button" variant="secondary" className="w-full text-xs sm:w-auto" onClick={() => onSave(v)}>
         Salvar
       </Button>
     </div>

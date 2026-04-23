@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
-import { ArrowLeft, ImagePlus } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
@@ -90,6 +90,7 @@ export function ProductEditorPage() {
   const [evColor, setEvColor] = useState('')
   const [evPrice, setEvPrice] = useState('')
   const [evSku, setEvSku] = useState('')
+  const [variantPanel, setVariantPanel] = useState<'list' | 'create' | 'edit'>('list')
 
   const dirtyRef = useRef(false)
   const draftNotifyDone = useRef(false)
@@ -413,6 +414,7 @@ export function ProductEditorPage() {
       setVColor('')
       setVPrice('')
       setVSku('')
+      setVariantPanel('list')
       markDirty()
       void loadVariants(id)
     }
@@ -445,6 +447,7 @@ export function ProductEditorPage() {
     else {
       notifyOk('Variação atualizada.')
       setEditVid(null)
+      setVariantPanel('list')
       if (id) void loadVariants(id)
       markDirty()
     }
@@ -499,6 +502,7 @@ export function ProductEditorPage() {
     setEvColor(v.color_id ?? '')
     setEvSku(v.sku_suffix ?? '')
     setEvPrice(v.price_override != null ? formatMoneyFromDecimal(v.price_override) : '')
+    setVariantPanel('edit')
     notifyInfo('Editando variação.')
   }
 
@@ -712,27 +716,44 @@ export function ProductEditorPage() {
               className="block w-full rounded-lg border border-dashed border-ink-300 bg-white p-3 text-sm"
               onChange={(e) => onPickFiles(e.target.files)}
             />
-            {!isNew ? (
-              <ul className="mt-2 space-y-2">
-                {existingImgs.map((im) => {
-                  const gone = removeImgIds.has(im.id)
-                  return (
-                    <li key={im.id} className="flex items-center gap-3 text-sm">
-                      <img src={im.url} alt="" className={`h-14 w-14 rounded-lg object-cover ring-1 ring-ink-200 ${gone ? 'opacity-40' : ''}`} />
-                      <span className="text-ink-600">{gone ? 'Será removida ao salvar' : 'Publicada'}</span>
-                      <Button type="button" variant="ghost" className="text-xs" onClick={() => toggleRemoveImg(im.id)}>
-                        {gone ? 'Manter' : 'Remover'}
-                      </Button>
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : null}
-            {pendingFiles.length ? (
-              <p className="inline-flex items-center gap-1 text-xs text-ink-600">
-                <ImagePlus className="h-3.5 w-3.5" />
-                Novos arquivos: {pendingFiles.map((f) => f.name).join(', ')}
-              </p>
+            {existingImgs.length > 0 || pendingPreviewUrls.length > 0 ? (
+              <div className="mt-2">
+                <p className="mb-2 text-xs font-medium text-ink-600">Preview das imagens</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {existingImgs.map((im) => {
+                    const gone = removeImgIds.has(im.id)
+                    return (
+                      <div key={im.id} className="space-y-1">
+                        <div className="relative aspect-square overflow-hidden rounded-lg bg-ink-100 ring-1 ring-ink-200">
+                          <img src={im.url} alt="" className={`h-full w-full object-cover ${gone ? 'opacity-35' : ''}`} />
+                          {gone ? (
+                            <div className="absolute inset-0 flex items-end bg-ink-900/25 p-1.5">
+                              <span className="rounded bg-white/95 px-1.5 py-0.5 text-[10px] font-medium text-ink-700">
+                                Será removida ao salvar
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <Button type="button" variant="ghost" className="w-full text-xs" onClick={() => toggleRemoveImg(im.id)}>
+                          {gone ? 'Manter' : 'Remover'}
+                        </Button>
+                      </div>
+                    )
+                  })}
+
+                  {pendingPreviewUrls.map((p) => (
+                    <div key={p.url} className="space-y-1">
+                      <div className="relative aspect-square overflow-hidden rounded-lg bg-ink-100 ring-1 ring-ink-200">
+                        <img src={p.url} alt={p.name} className="h-full w-full object-cover" />
+                        <span className="absolute left-1.5 top-1.5 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          Nova
+                        </span>
+                      </div>
+                      <p className="truncate text-[11px] text-ink-500">Pronta para envio</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : null}
             </div>
           </div>
@@ -786,54 +807,91 @@ export function ProductEditorPage() {
               ) : null}
             </div>
 
-            {variants.length > 0 ? (
-              <div className="overflow-x-auto rounded-xl border border-ink-100">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-ink-50 text-left text-xs uppercase text-ink-500">
-                    <tr>
-                      <th className="px-3 py-2">Nome</th>
-                      <th className="px-3 py-2">Cor</th>
-                      <th className="px-3 py-2">SKU sufixo</th>
-                      <th className="px-3 py-2">Preço</th>
-                      <th className="px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ink-100">
+            {!isNew ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {variantPanel === 'list' ? (
+                  <Button type="button" variant="secondary" onClick={() => setVariantPanel('create')}>
+                    Nova variação
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setVariantPanel('list')
+                      setEditVid(null)
+                    }}
+                  >
+                    Voltar para lista
+                  </Button>
+                )}
+              </div>
+            ) : null}
+
+            {variantPanel === 'list' ? (
+              variants.length > 0 ? (
+                <>
+                  <div className="space-y-2 md:hidden">
                     {variants.map((v) => (
-                      <tr key={v.id}>
-                        {editVid === v.id ? (
-                          <>
-                            <td className="px-3 py-2" colSpan={5}>
-                              <div className="flex flex-wrap items-end gap-2">
-                                <Input className="max-w-[180px]" value={evName} onChange={(e) => setEvName(e.target.value)} />
-                                <Select value={evColor} onChange={(e) => setEvColor(e.target.value)}>
-                                  <option value="">Sem cor</option>
-                                  {colors.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.name}
-                                    </option>
-                                  ))}
-                                </Select>
-                                <Input className="w-24" value={evSku} onChange={(e) => setEvSku(e.target.value)} />
-                                <MoneyField className="max-w-[140px]" value={evPrice} onValueChange={(m) => setEvPrice(m)} />
-                                <Button type="button" variant="secondary" onClick={() => void saveVariantEdit()}>
-                                  OK
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setEditVid(null)
-                                    notifyInfo('Edição da variação cancelada.')
-                                  }}
-                                >
-                                  Cancelar
-                                </Button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
+                      <div key={v.id} className="rounded-2xl border border-ink-200 bg-white p-3.5 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-lg font-semibold text-ink-900">{v.name}</p>
+                            <p className="mt-0.5 text-[11px] uppercase tracking-wide text-ink-500">Variação ativa</p>
+                          </div>
+                          <p className="whitespace-nowrap text-lg font-bold text-ink-900">
+                            {v.price_override != null ? formatCurrency(v.price_override) : 'Padrão'}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-700">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-ink-100 px-2.5 py-1">
+                            Cor:
+                            {v.colors ? (
+                              <span className="inline-flex items-center gap-1 font-medium">
+                                <span className="h-3.5 w-3.5 rounded-full ring-1 ring-ink-200" style={{ background: v.colors.hex }} />
+                                {v.colors.name}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </span>
+                          <span className="rounded-full bg-ink-100 px-2.5 py-1">
+                            SKU: <span className="font-medium">{v.sku_suffix || '—'}</span>
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <Button type="button" variant="ghost" className="rounded-xl border border-ink-200 py-2 text-sm" onClick={() => startEdit(v)}>
+                            Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="rounded-xl border border-red-200 py-2 text-sm text-red-600"
+                            onClick={() => void deleteVariant(v.id)}
+                          >
+                            Excluir
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="hidden overflow-x-auto rounded-xl border border-ink-100 md:block">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-ink-50 text-left text-xs uppercase text-ink-500">
+                        <tr>
+                          <th className="px-3 py-2">Nome</th>
+                          <th className="px-3 py-2">Cor</th>
+                          <th className="px-3 py-2">SKU sufixo</th>
+                          <th className="px-3 py-2">Preço</th>
+                          <th className="px-3 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-ink-100">
+                        {variants.map((v) => (
+                          <tr key={v.id}>
                             <td className="px-3 py-2 font-medium">{v.name}</td>
                             <td className="px-3 py-2">
                               {v.colors ? (
@@ -846,9 +904,7 @@ export function ProductEditorPage() {
                               )}
                             </td>
                             <td className="px-3 py-2">{v.sku_suffix || '—'}</td>
-                            <td className="px-3 py-2">
-                              {v.price_override != null ? formatCurrency(v.price_override) : 'Padrão'}
-                            </td>
+                            <td className="px-3 py-2">{v.price_override != null ? formatCurrency(v.price_override) : 'Padrão'}</td>
                             <td className="px-3 py-2 text-right">
                               <Button type="button" variant="ghost" className="text-xs" onClick={() => startEdit(v)}>
                                 Editar
@@ -857,55 +913,113 @@ export function ProductEditorPage() {
                                 Excluir
                               </Button>
                             </td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-ink-500">Nenhuma variação ainda.</p>
-            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-ink-500">Nenhuma variação ainda.</p>
+              )
+            ) : null}
 
-            <div className="rounded-xl border border-dashed border-ink-200 p-4">
-              <p className="text-xs font-medium text-ink-600">Nova variação</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div>
-                  <label className="text-xs text-ink-500">Nome</label>
-                  <Input className="mt-1" value={vName} onChange={(e) => setVName(e.target.value)} placeholder="ex: Linho cinza" />
+            {variantPanel === 'create' ? (
+              <div className="rounded-xl border border-dashed border-ink-200 p-4">
+                <p className="text-xs font-medium text-ink-600">Nova variação</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="text-xs text-ink-500">Nome</label>
+                    <Input className="mt-1" value={vName} onChange={(e) => setVName(e.target.value)} placeholder="ex: Linho cinza" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Cor (cadastro)</label>
+                    <Select className="mt-1" value={vColor} onChange={(e) => setVColor(e.target.value)}>
+                      <option value="">—</option>
+                      {colors.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.hex})
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Sufixo SKU</label>
+                    <Input className="mt-1" value={vSku} onChange={(e) => setVSku(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Preço específico (opcional)</label>
+                    <MoneyField className="mt-1" value={vPrice} onValueChange={(m) => setVPrice(m)} />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-ink-500">Cor (cadastro)</label>
-                  <Select className="mt-1" value={vColor} onChange={(e) => setVColor(e.target.value)}>
-                    <option value="">—</option>
-                    {colors.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.hex})
-                      </option>
-                    ))}
-                  </Select>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void addVariant()} disabled={isNew}>
+                    Adicionar variação
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setVariantPanel('list')
+                      setVName('')
+                      setVColor('')
+                      setVPrice('')
+                      setVSku('')
+                    }}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
-                <div>
-                  <label className="text-xs text-ink-500">Sufixo SKU</label>
-                  <Input className="mt-1" value={vSku} onChange={(e) => setVSku(e.target.value)} />
+                <p className="mt-2 text-xs text-ink-500">Cadastre cores em Dados do catálogo → Cores.</p>
+              </div>
+            ) : null}
+
+            {variantPanel === 'edit' && editVid ? (
+              <div className="rounded-xl border border-ink-200 p-4">
+                <p className="text-xs font-medium text-ink-600">Editar variação</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="text-xs text-ink-500">Nome</label>
+                    <Input className="mt-1" value={evName} onChange={(e) => setEvName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Cor (cadastro)</label>
+                    <Select className="mt-1" value={evColor} onChange={(e) => setEvColor(e.target.value)}>
+                      <option value="">Sem cor</option>
+                      {colors.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Sufixo SKU</label>
+                    <Input className="mt-1" value={evSku} onChange={(e) => setEvSku(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Preço específico (opcional)</label>
+                    <MoneyField className="mt-1" value={evPrice} onValueChange={(m) => setEvPrice(m)} />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-ink-500">Preço específico (opcional)</label>
-                  <MoneyField className="mt-1" value={vPrice} onValueChange={(m) => setVPrice(m)} />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void saveVariantEdit()}>
+                    Salvar alterações
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditVid(null)
+                      setVariantPanel('list')
+                      notifyInfo('Edição da variação cancelada.')
+                    }}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
               </div>
-              <Button
-                type="button"
-                className="mt-3 w-full sm:w-auto"
-                variant="secondary"
-                onClick={() => void addVariant()}
-                disabled={isNew}
-              >
-                Adicionar variação
-              </Button>
-              <p className="mt-2 text-xs text-ink-500">Cadastre cores em Dados do catálogo → Cores.</p>
-            </div>
+            ) : null}
           </Card>
 
         <div className="flex items-center justify-between gap-3">

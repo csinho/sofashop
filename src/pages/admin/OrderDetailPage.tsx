@@ -147,10 +147,10 @@ export function OrderDetailPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-        <Card className="flex flex-wrap items-end gap-3 lg:col-span-4">
+        <Card className="flex flex-col gap-3 sm:flex-row sm:items-end lg:col-span-4">
           <div className="min-w-0 flex-1">
             <label className="text-xs font-medium text-ink-600">Status</label>
-            <Select className="mt-1 min-w-[200px] w-full max-w-full" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}>
+            <Select className="mt-1 w-full max-w-full sm:min-w-[200px]" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}>
               {Object.entries(ORDER_STATUS_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -158,7 +158,9 @@ export function OrderDetailPage() {
               ))}
             </Select>
           </div>
-          <Button onClick={saveStatus}>Salvar status</Button>
+          <Button className="w-full sm:w-auto" onClick={saveStatus}>
+            Salvar status
+          </Button>
         </Card>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
