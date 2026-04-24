@@ -45,6 +45,11 @@ function pathFromAssetUrl(url: string) {
   return url.slice(i + '/store-assets/'.length)
 }
 
+function buildAutoSku(productName: string, sequence: number) {
+  const base = slugify(productName || 'produto').toUpperCase() || 'PRODUTO'
+  return `${base}-${String(sequence).padStart(4, '0')}`
+}
+
 export function ProductEditorPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = id === 'novo'
@@ -65,12 +70,15 @@ export function ProductEditorPage() {
   const [shortDesc, setShortDesc] = useState('')
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
+  const [skuTouched, setSkuTouched] = useState(false)
+  const [nextSkuNumber, setNextSkuNumber] = useState(1)
   const [basePrice, setBasePrice] = useState('')
   const [promoPrice, setPromoPrice] = useState('')
   const [deliveryDays, setDeliveryDays] = useState('15')
   const [dimL, setDimL] = useState('')
   const [dimW, setDimW] = useState('')
   const [dimH, setDimH] = useState('')
+  const [warranty, setWarranty] = useState('')
   const [internalNotes, setInternalNotes] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [isFeatured, setIsFeatured] = useState(false)
@@ -137,6 +145,7 @@ export function ProductEditorPage() {
           dimL,
           dimW,
           dimH,
+          warranty,
           internalNotes,
           isActive,
           isFeatured,
@@ -164,6 +173,7 @@ export function ProductEditorPage() {
     dimL,
     dimW,
     dimH,
+    warranty,
     internalNotes,
     isActive,
     isFeatured,
@@ -199,6 +209,8 @@ export function ProductEditorPage() {
       setColors((cols as never) ?? [])
 
       if (isNew) {
+        const { count } = await sb.from('products').select('id', { count: 'exact', head: true }).eq('store_id', store.id)
+        setNextSkuNumber((count ?? 0) + 1)
         setCategoryId((cats as { id: string }[] | null)?.[0]?.id ?? '')
         setModelType(mlist[0]?.name ?? '')
         const raw = sessionStorage.getItem(draftKey)
@@ -212,13 +224,17 @@ export function ProductEditorPage() {
             if (typeof d.modelType === 'string') setModelType(d.modelType)
             if (typeof d.shortDesc === 'string') setShortDesc(d.shortDesc)
             if (typeof d.description === 'string') setDescription(d.description)
-            if (typeof d.sku === 'string') setSku(d.sku)
+            if (typeof d.sku === 'string') {
+              setSku(d.sku)
+              if (d.sku.trim()) setSkuTouched(true)
+            }
             if (typeof d.basePrice === 'string') setBasePrice(d.basePrice)
             if (typeof d.promoPrice === 'string') setPromoPrice(d.promoPrice)
             if (typeof d.deliveryDays === 'string') setDeliveryDays(d.deliveryDays)
             if (typeof d.dimL === 'string') setDimL(d.dimL)
             if (typeof d.dimW === 'string') setDimW(d.dimW)
             if (typeof d.dimH === 'string') setDimH(d.dimH)
+            if (typeof d.warranty === 'string') setWarranty(d.warranty)
             if (typeof d.internalNotes === 'string') setInternalNotes(d.internalNotes)
             if (typeof d.isActive === 'boolean') setIsActive(d.isActive)
             if (typeof d.isFeatured === 'boolean') setIsFeatured(d.isFeatured)
@@ -248,12 +264,14 @@ export function ProductEditorPage() {
       setShortDesc(String(pr.short_description ?? ''))
       setDescription(String(pr.description ?? ''))
       setSku(String(pr.sku))
+      setSkuTouched(true)
       setBasePrice(formatMoneyFromDecimal(Number(pr.base_price)))
       setPromoPrice(pr.promo_price != null ? formatMoneyFromDecimal(Number(pr.promo_price)) : '')
       setDeliveryDays(String(pr.delivery_days ?? 15))
       setDimL(pr.dimension_length_cm != null ? String(Math.round(Number(pr.dimension_length_cm))) : '')
       setDimW(pr.dimension_width_cm != null ? String(Math.round(Number(pr.dimension_width_cm))) : '')
       setDimH(pr.dimension_height_cm != null ? String(Math.round(Number(pr.dimension_height_cm))) : '')
+      setWarranty(String((pr.sofa_spec as SofaSpec | null | undefined)?.warranty ?? ''))
       setInternalNotes(String(pr.internal_notes ?? ''))
       setIsActive(Boolean(pr.is_active))
       setIsFeatured(Boolean(pr.is_featured))
@@ -267,6 +285,11 @@ export function ProductEditorPage() {
 
   const visibleCount = existingImgs.filter((i) => !removeImgIds.has(i.id)).length + pendingFiles.length
   const pendingPreviewUrls = useMemo(() => pendingFiles.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })), [pendingFiles])
+
+  useEffect(() => {
+    if (!isNew || skuTouched) return
+    setSku(buildAutoSku(name, nextSkuNumber))
+  }, [isNew, skuTouched, name, nextSkuNumber])
 
   useEffect(() => {
     return () => {
@@ -311,7 +334,9 @@ export function ProductEditorPage() {
 
   async function onSave(e: FormEvent) {
     e.preventDefault()
-    const spec: SofaSpec = {}
+    const spec: SofaSpec = {
+      warranty: warranty.trim() || undefined,
+    }
 
     if (visibleCount > MAX_IMAGES) {
       notifyErr(`No máximo ${MAX_IMAGES} imagens (contando as já publicadas e as novas).`)
@@ -327,16 +352,49 @@ export function ProductEditorPage() {
     setSaving(true)
     const sb = getSupabaseBrowserClient()
 
+    let finalCategoryId = categoryId
+    let finalModelType = modelType.trim()
+
+    if (!finalCategoryId) {
+      const { data: insertedCat, error: catErr } = await sb
+        .from('categories')
+        .insert({
+          store_id: store.id,
+          name: 'Geral',
+          slug: `geral-${Date.now()}`,
+          sort_order: categories.length,
+          is_active: true,
+        })
+        .select('id')
+        .single()
+      if (catErr) {
+        notifyErr('Não foi possível definir categoria padrão. Verifique os dados do catálogo.')
+        setSaving(false)
+        return
+      }
+      finalCategoryId = String((insertedCat as { id: string }).id)
+      setCategoryId(finalCategoryId)
+      setCategories((prev) => [...prev, { id: finalCategoryId!, name: 'Geral' }])
+    }
+
+    if (!finalModelType) {
+      finalModelType = 'Padrão'
+      setModelType(finalModelType)
+    }
+
+    const finalSku = sku.trim() || buildAutoSku(name, nextSkuNumber)
+    if (!sku.trim()) setSku(finalSku)
+
     const row = {
       store_id: store.id,
-      category_id: categoryId,
+      category_id: finalCategoryId,
       name: name.trim(),
       slug: (slug.trim() || autoSlug).toLowerCase(),
       subcategory: subcategory.trim() || null,
-      model_type: modelType,
+      model_type: finalModelType,
       short_description: shortDesc.trim(),
       description: description.trim(),
-      sku: sku.trim(),
+      sku: finalSku,
       base_price: baseNum,
       promo_price: promoPrice.trim() ? parseMoneyBRL(promoPrice) : null,
       is_active: isActive,
@@ -584,13 +642,20 @@ export function ProductEditorPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-ink-600">SKU</label>
-                <Input className="mt-1" value={sku} onChange={(e) => setSku(e.target.value)} required />
+                <Input
+                  className="mt-1"
+                  value={sku}
+                  onChange={(e) => {
+                    setSkuTouched(true)
+                    setSku(e.target.value)
+                  }}
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="text-xs font-medium text-ink-600">Categoria</label>
-                <Select className="mt-1" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+                <Select className="mt-1" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -605,7 +670,7 @@ export function ProductEditorPage() {
             </div>
             <div>
               <label className="text-xs font-medium text-ink-600">Tipo / modelo</label>
-              <Select className="mt-1" value={modelType} onChange={(e) => setModelType(e.target.value)} required>
+              <Select className="mt-1" value={modelType} onChange={(e) => setModelType(e.target.value)}>
                 {modelTypes.map((m) => (
                   <option key={m.id} value={m.name}>
                     {m.name}
@@ -652,6 +717,15 @@ export function ProductEditorPage() {
                 <label className="text-xs font-medium text-ink-600">Altura (cm)</label>
                 <IntegerField className="mt-1" value={dimH} onValueChange={setDimH} min={0} placeholder="opcional" />
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Garantia do produto</label>
+              <Input
+                className="mt-1"
+                value={warranty}
+                onChange={(e) => setWarranty(e.target.value)}
+                placeholder="Ex.: 90 dias, 3 meses, 1 ano"
+              />
             </div>
           </div>
 

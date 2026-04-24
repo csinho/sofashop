@@ -140,13 +140,15 @@ export function RegisterStorePage() {
       const id = storeId as unknown as string
 
       if (logoFile && id) {
-        const ext = logoFile.name.split('.').pop() || 'png'
-        const path = `${id}/logo.${ext}`
-        const up = await sb.storage.from('store-assets').upload(path, logoFile, { upsert: true })
-        if (!up.error) {
-          const pub = sb.storage.from('store-assets').getPublicUrl(path)
-          await sb.from('stores').update({ logo_url: pub.data.publicUrl }).eq('id', id)
-        }
+        void (async () => {
+          const ext = logoFile.name.split('.').pop() || 'png'
+          const path = `${id}/logo-${Date.now()}.${ext}`
+          const up = await sb.storage.from('store-assets').upload(path, logoFile, { upsert: false })
+          if (!up.error) {
+            const pub = sb.storage.from('store-assets').getPublicUrl(path)
+            await sb.from('stores').update({ logo_url: pub.data.publicUrl }).eq('id', id)
+          }
+        })()
       }
 
       notifyOk('Loja criada. Bem-vindo ao painel.')

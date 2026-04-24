@@ -112,6 +112,7 @@ export function ProductDetailPage() {
 
   function handleAdd() {
     if (!product) return
+    const warrantyTerm = String((product.sofa_spec as { warranty?: string } | null | undefined)?.warranty ?? '').trim()
     addLine({
       storeId: store.id,
       productId: String(product.id),
@@ -123,6 +124,7 @@ export function ProductDetailPage() {
       imageUrl: images[0],
       colorName: selected?.colors?.name,
       variantLabel: selected?.name,
+      warranty: warrantyTerm || undefined,
     })
     notifyOk('Produto adicionado ao carrinho.')
     nav(`/loja/${slug}`)

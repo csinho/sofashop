@@ -401,6 +401,7 @@ export async function generateOrderPdf(opts: {
       .filter(Boolean)
       .join(' | ')
     const desc = extra ? `${it.product_name}\n${extra}` : it.product_name
+    const warranty = String(opt.warranty ?? '').trim() || '—'
     return [
       String(idx + 1),
       it.sku,
@@ -410,12 +411,13 @@ export async function generateOrderPdf(opts: {
       formatCurrency(it.unit_price),
       formatCurrency(it.line_total),
       '—',
+      warranty,
     ]
   })
 
   autoTable(doc, {
     startY: y,
-    head: [['Item', 'Produto', 'Descrição', 'Un.', 'Qtde', 'Preço un.', 'Subtotal', 'Prazo entrega']],
+    head: [['Item', 'Produto', 'Descrição', 'Un.', 'Qtde', 'Preço un.', 'Subtotal', 'Prazo entrega', 'Garantia']],
     body,
     styles: { fontSize: 7, cellPadding: 1.8, textColor: INK_RGB, lineColor: BORDER_RGB, lineWidth: 0.1 },
     headStyles: {
@@ -430,9 +432,10 @@ export async function generateOrderPdf(opts: {
       2: { cellWidth: 52 },
       3: { cellWidth: 12 },
       4: { cellWidth: 12 },
-      5: { cellWidth: 24 },
-      6: { cellWidth: 24 },
-      7: { cellWidth: 22 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 20 },
+      7: { cellWidth: 17 },
+      8: { cellWidth: 17 },
     },
     margin: { left: margin, right: margin },
   })

@@ -31,6 +31,7 @@ type OrderFull = {
     | null
   order_items: {
     id: string
+    product_id: string | null
     product_name: string
     sku: string
     quantity: number
@@ -47,6 +48,7 @@ export function OrderDetailPage() {
   const [order, setOrder] = useState<OrderFull | null>(null)
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState<OrderStatus>('novo')
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -59,7 +61,7 @@ export function OrderDetailPage() {
           id, order_number, created_at, status, subtotal, total, payment_kind, payment_details,
           customer_snapshot, shipping_snapshot, notes,
           customers ( full_name, phone, phone_secondary, email ),
-          order_items ( id, product_name, sku, quantity, unit_price, line_total, options_snapshot )
+          order_items ( id, product_id, product_name, sku, quantity, unit_price, line_total, options_snapshot )
         `,
         )
         .eq('id', id!)
@@ -95,31 +97,56 @@ export function OrderDetailPage() {
   }
 
   async function onPdf() {
-    if (!order) return
+    if (!order || generatingPdf) return
+    setGeneratingPdf(true)
     try {
+      const sb = getSupabaseBrowserClient()
+      const productIds = Array.from(new Set(order.order_items.map((i) => i.product_id).filter((v): v is string => Boolean(v))))
+      const warrantyByProductId = new Map<string, string>()
+      if (productIds.length) {
+        const { data: products } = await sb
+          .from('products')
+          .select('id, sofa_spec')
+          .in('id', productIds)
+        ;((products as { id: string; sofa_spec: { warranty?: string } | null }[] | null) ?? []).forEach((p) => {
+          const term = String(p.sofa_spec?.warranty ?? '').trim()
+          if (term) warrantyByProductId.set(p.id, term)
+        })
+      }
+
       await generateOrderPdf({
         store,
         orderNumber: order.order_number,
         createdAt: order.created_at,
         status: order.status,
         customer: (order.customer_snapshot as Record<string, unknown>) ?? {},
-        shipping: order.shipping_snapshot,
-        items: order.order_items.map((i) => ({
-          product_name: i.product_name,
-          sku: i.sku,
-          quantity: i.quantity,
-          unit_price: Number(i.unit_price),
-          line_total: Number(i.line_total),
-          options_snapshot: i.options_snapshot,
-        })),
+        shipping: (order.shipping_snapshot as Record<string, unknown>) ?? {},
+        items: order.order_items.map((i) => {
+          const currentOptions = (i.options_snapshot as Record<string, unknown> | null) ?? {}
+          const snapshotWarranty = String(currentOptions.warranty ?? '').trim()
+          const fallbackWarranty = i.product_id ? warrantyByProductId.get(i.product_id) ?? '' : ''
+          return {
+            product_name: i.product_name,
+            sku: i.sku,
+            quantity: i.quantity,
+            unit_price: Number(i.unit_price),
+            line_total: Number(i.line_total),
+            options_snapshot: {
+              ...currentOptions,
+              warranty: snapshotWarranty || fallbackWarranty || null,
+            },
+          }
+        }),
         total: Number(order.total),
         paymentKind: order.payment_kind,
         paymentDetails: order.payment_details ?? {},
         notes: order.notes,
       })
       notifyOk('PDF gerado e baixado.')
-    } catch {
-      notifyErr('Não foi possível gerar o PDF.')
+    } catch (err: unknown) {
+      notifyErr(err instanceof Error ? `Não foi possível gerar o PDF: ${err.message}` : 'Não foi possível gerar o PDF.')
+    } finally {
+      setGeneratingPdf(false)
     }
   }
 
@@ -141,7 +168,7 @@ export function OrderDetailPage() {
           <h2 className="mt-2 font-display text-2xl font-semibold text-ink-900 lg:text-3xl">{order.order_number}</h2>
           <p className="text-sm text-ink-600">{formatDateTime(order.created_at)}</p>
         </div>
-        <Button className="hidden md:inline-flex" onClick={onPdf}>
+        <Button className="hidden md:inline-flex" onClick={onPdf} loading={generatingPdf}>
           Gerar PDF
         </Button>
       </div>
@@ -263,7 +290,7 @@ export function OrderDetailPage() {
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-white/95 p-3 backdrop-blur md:hidden">
-        <Button className="w-full py-3 text-base" onClick={onPdf}>
+        <Button className="w-full py-3 text-base" onClick={onPdf} loading={generatingPdf}>
           Gerar PDF
         </Button>
       </div>

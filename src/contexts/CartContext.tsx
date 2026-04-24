@@ -12,6 +12,7 @@ export type CartLine = {
   imageUrl?: string
   colorName?: string
   variantLabel?: string
+  warranty?: string
 }
 
 type CartCtx = {
@@ -72,6 +73,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           imageUrl: line.imageUrl,
           colorName: line.colorName,
           variantLabel: line.variantLabel,
+          warranty: line.warranty,
         }
         return next
       }

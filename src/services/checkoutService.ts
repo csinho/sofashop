@@ -88,6 +88,7 @@ export async function submitCheckout(payload: CheckoutPayload) {
       color: l.colorName ?? null,
       variant: l.variantLabel ?? null,
       image: l.imageUrl ?? null,
+      warranty: l.warranty ?? null,
     } as Json,
   }))
 
