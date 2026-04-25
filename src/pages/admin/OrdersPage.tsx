@@ -3,6 +3,8 @@ import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { LayoutGrid, List } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { ListPaginationBar } from '@/components/ui/ListPaginationBar'
+import { useListPagination } from '@/hooks/useListPagination'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { formatCurrency, formatDateTime } from '@/lib/format'
@@ -62,6 +64,9 @@ export function OrdersPage() {
   useEffect(() => {
     if (isMobile && view === 'kanban') setView('list')
   }, [isMobile, view])
+
+  const listForPagination = !loading && view === 'list' ? rows : []
+  const { pageItems, page, setPage, pageCount, showPagination, total: listTotal } = useListPagination(listForPagination)
 
   useEffect(() => {
     let alive = true
@@ -293,7 +298,7 @@ export function OrdersPage() {
                 <p className="text-sm text-ink-500">Nenhum pedido encontrado.</p>
               </Card>
             ) : (
-              rows.map((r) => {
+              pageItems.map((r) => {
                 const c = Array.isArray(r.customers) ? r.customers[0] : r.customers
                 return (
                   <Link key={r.id} to={`/admin/pedidos/${r.id}`} className="block">
@@ -342,7 +347,7 @@ export function OrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
-                {rows.map((r) => {
+                {pageItems.map((r) => {
                   const c = Array.isArray(r.customers) ? r.customers[0] : r.customers
                   return (
                     <tr key={r.id}>
@@ -377,6 +382,18 @@ export function OrdersPage() {
             </table>
           )}
           </Card>
+
+          <ListPaginationBar
+            show={showPagination}
+            page={page}
+            pageCount={pageCount}
+            total={listTotal}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(pageCount, p + 1))}
+            itemSingular="pedido"
+            itemPlural="pedidos"
+            ariaLabel="Paginação da lista de pedidos"
+          />
         </>
       )}
     </div>

@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { fetchCatalogStoreBySlug } from '@/services/catalogPublicService'
+import { fetchPublicCatalogAccess } from '@/services/catalogPublicService'
 import { useCart } from '@/contexts/CartContext'
 import type { CatalogStoreRow } from '@/types/database'
 import { getDefaultDocumentTitle, getPwaBrandName } from '@/lib/documentTitle'
 import { CatalogTopBanner } from '@/components/catalog/CatalogTopBanner'
 
+type CatalogState =
+  | { kind: 'loading' }
+  | { kind: 'ok'; store: CatalogStoreRow }
+  | { kind: 'not_found' }
+  | { kind: 'inactive'; trade_name: string }
+  | { kind: 'unpublished'; trade_name: string }
+
 export function CatalogLayout() {
   const { slug } = useParams<{ slug: string }>()
   const loc = useLocation()
   const nav = useNavigate()
-  const { setStore, lines } = useCart()
-  const [store, setStoreState] = useState<CatalogStoreRow | null | undefined>(undefined)
+  const { setStore, lines, clear } = useCart()
+  const [state, setState] = useState<CatalogState>({ kind: 'loading' })
   const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -19,39 +26,55 @@ export function CatalogLayout() {
     ;(async () => {
       if (!slug) return
       try {
-        const s = await fetchCatalogStoreBySlug(slug)
+        const res = await fetchPublicCatalogAccess(slug)
         if (!alive) return
-        setStoreState(s)
-        if (s) setStore(s.id)
+        if (res.status === 'ok') {
+          setState({ kind: 'ok', store: res.store })
+          setStore(res.store.id)
+        } else {
+          clear()
+          if (res.status === 'not_found') setState({ kind: 'not_found' })
+          else if (res.status === 'inactive') setState({ kind: 'inactive', trade_name: res.trade_name })
+          else setState({ kind: 'unpublished', trade_name: res.trade_name })
+        }
       } catch {
-        if (alive) setStoreState(null)
+        if (alive) {
+          clear()
+          setState({ kind: 'not_found' })
+        }
       }
     })()
     return () => {
       alive = false
     }
-  }, [slug, setStore])
+  }, [slug, setStore, clear])
 
   useEffect(() => {
-    if (store === undefined) return
+    if (state.kind === 'loading') return
     const brand = getPwaBrandName()
-    if (!store) {
-      document.title = `${brand} — Loja não encontrada`
+    if (state.kind === 'ok') {
+      document.title = `${brand} — ${state.store.trade_name}`
       return () => {
         document.title = getDefaultDocumentTitle()
       }
     }
-    document.title = `${brand} — ${store.trade_name}`
+    if (state.kind === 'not_found') {
+      document.title = `${brand} — Loja não encontrada`
+    } else if (state.kind === 'inactive' || state.kind === 'unpublished') {
+      document.title = `${brand} — Loja indisponível`
+    } else {
+      document.title = `${brand} — Erro`
+    }
     return () => {
       document.title = getDefaultDocumentTitle()
     }
-  }, [store])
+  }, [state])
 
   useEffect(() => {
     setBannerImageUrl(null)
   }, [loc.pathname])
 
-  if (store === undefined) {
+  if (state.kind === 'loading') {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-ink-500">
         Carregando catálogo…
@@ -59,7 +82,7 @@ export function CatalogLayout() {
     )
   }
 
-  if (!store) {
+  if (state.kind === 'not_found') {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 text-center">
         <h1 className="font-display text-2xl font-semibold text-ink-900">Loja não encontrada</h1>
@@ -71,12 +94,50 @@ export function CatalogLayout() {
     )
   }
 
+  if (state.kind === 'inactive') {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-24 text-center">
+        <p className="text-sm font-semibold uppercase tracking-wide text-ink-500">Loja indisponível</p>
+        <h1 className="mt-2 font-display text-2xl font-semibold text-ink-900">Esta loja está inativa no momento</h1>
+        <p className="mt-2 text-sm text-ink-600">
+          {state.trade_name ? (
+            <>Você tentou acessar <span className="font-semibold text-ink-800">{state.trade_name}</span>. </>
+          ) : null}
+          A loja foi temporariamente desativada. Entre em contato com o vendedor se precisar.
+        </p>
+      </div>
+    )
+  }
+
+  if (state.kind === 'unpublished') {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-24 text-center">
+        <p className="text-sm font-semibold uppercase tracking-wide text-ink-500">Loja indisponível</p>
+        <h1 className="mt-2 font-display text-2xl font-semibold text-ink-900">O catálogo desta loja não está publicado no momento</h1>
+        <p className="mt-2 text-sm text-ink-600">
+          {state.trade_name ? (
+            <>Você tentou acessar <span className="font-semibold text-ink-800">{state.trade_name}</span>. </>
+          ) : null}
+          Entre em contato com a loja ou tente novamente mais tarde.
+        </p>
+        <Link className="mt-6 inline-block text-sm font-semibold text-brand-700 hover:underline" to="/">
+          Ir ao início
+        </Link>
+      </div>
+    )
+  }
+
+  if (state.kind !== 'ok') {
+    return null
+  }
+  const { store } = state
+
   const style = {
     ['--cat-primary' as string]: store.theme_primary,
     ['--cat-accent' as string]: store.theme_accent,
   } as React.CSSProperties
 
-  const cartCount = lines.reduce((n, l) => n + l.qty, 0)
+  const cartCount = lines.filter((l) => l.storeId === store.id).reduce((n, l) => n + l.qty, 0)
   const basePath = `/loja/${slug}`
   const showCartButton = loc.pathname === basePath || loc.pathname.startsWith(`${basePath}/produto/`)
   const showBackButton =

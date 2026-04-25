@@ -86,12 +86,27 @@ export function DashboardPage() {
 
   if (loading) return <p className="text-sm text-ink-500">Carregando indicadores…</p>
 
+  const storeInactive = store.is_active === false
+
   return (
     <div className="space-y-6 md:space-y-8">
       <div>
         <h2 className="font-display text-2xl font-semibold text-ink-900">Dashboard</h2>
         <p className="text-sm text-ink-600">Visão geral da sua loja</p>
       </div>
+
+      {storeInactive ? (
+        <div
+          className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 shadow-sm md:p-5"
+          role="alert"
+        >
+          <p className="font-display text-lg font-semibold text-amber-950">Sua loja está inativa</p>
+          <p className="mt-2 text-sm text-amber-900/90">
+            O catálogo público e a gestão de pedidos, clientes e demais funções estão bloqueados até a reativação. Entre em contato com o suporte da
+            plataforma se precisar de ajuda.
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="p-4">

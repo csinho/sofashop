@@ -76,6 +76,8 @@ export type CatalogStoreRow = {
   policy_text: string
   whatsapp_orders_phone: string
   catalog_published: boolean
+  /** Loja com conta ativa (gestão e catálogo, conforme regras da UI). Sempre true quando vinda do catálogo “ok”. */
+  is_active?: boolean
   checkout_payment_config?: CheckoutPaymentConfig | null
 }
 
@@ -89,7 +91,8 @@ export type StoreRow = CatalogStoreRow & {
   owner_user_id: string
   pdf_footer: string
   default_order_notes: string
-  checkout_payment_config?: CheckoutPaymentConfig | null
+  /** Só a plataforma altera; membros veem, não editam. */
+  is_active: boolean
 }
 
 export type Database = {
@@ -279,6 +282,11 @@ export type Database = {
         Args: { p_store_id: string; p_customer_id?: string | null; p_phone?: string | null }
         Returns: Json
       }
+      is_platform_admin: { Args: Record<string, never>; Returns: boolean }
+      get_public_catalog_store: { Args: { p_slug: string }; Returns: Json }
+      platform_list_stores: { Args: Record<string, never>; Returns: Json }
+      platform_get_store: { Args: { p_store_id: string }; Returns: Json }
+      platform_set_store_is_active: { Args: { p_store_id: string; p_is_active: boolean }; Returns: void }
     }
     Enums: Record<string, never>
   }

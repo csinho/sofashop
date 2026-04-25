@@ -4,8 +4,10 @@ import { Plus, Search } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
+import { ListPaginationBar } from '@/components/ui/ListPaginationBar'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { useListPagination } from '@/hooks/useListPagination'
 import { formatCurrency } from '@/lib/format'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
@@ -71,6 +73,11 @@ export function ProductsPage() {
       return matchesSearch && matchesStatus && matchesFeatured && matchesCategory
     })
   }, [rows, search, status, featured, category])
+
+  const listForPagination = !loading ? filteredRows : []
+  const { pageItems, page, setPage, pageCount, showPagination, total: listTotal } = useListPagination(
+    listForPagination,
+  )
 
   return (
     <div className="space-y-6">
@@ -141,7 +148,7 @@ export function ProductsPage() {
       ) : (
         <>
           <div className="space-y-3 md:hidden">
-            {filteredRows.map((r) => {
+            {pageItems.map((r) => {
               const category = (Array.isArray(r.categories) ? r.categories[0] : r.categories)?.name ?? 'Sem categoria'
               const img = r.product_images?.slice().sort((a, b) => a.sort_order - b.sort_order)?.[0]?.url
               return (
@@ -197,7 +204,7 @@ export function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
-                {filteredRows.map((r) => (
+                {pageItems.map((r) => (
                   <tr key={r.id} className="hover:bg-ink-50/50">
                     <td className="px-4 py-3 font-medium text-ink-900">
                       {r.name}
@@ -224,6 +231,18 @@ export function ProductsPage() {
               </tbody>
             </table>
           </Card>
+
+          <ListPaginationBar
+            show={showPagination}
+            page={page}
+            pageCount={pageCount}
+            total={listTotal}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(pageCount, p + 1))}
+            itemSingular="produto"
+            itemPlural="produtos"
+            ariaLabel="Paginação da lista de produtos"
+          />
         </>
       )}
     </div>

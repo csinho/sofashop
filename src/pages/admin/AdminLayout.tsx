@@ -91,6 +91,15 @@ export function AdminLayout() {
     )
   }
 
+  const pathBase = loc.pathname.replace(/\/$/, '') || '/'
+  const isDashboardOnly = pathBase === '/admin'
+  if (store.is_active === false && !isDashboardOnly) {
+    return <Navigate to="/admin" replace />
+  }
+
+  const storeLocked = store.is_active === false
+  const navItems = storeLocked ? nav.filter((item) => item.to === '/admin') : nav
+
   return (
     <div className="flex min-h-svh flex-col bg-ink-50 lg:h-svh lg:min-h-0 lg:flex-row lg:overflow-hidden">
       <aside
@@ -117,7 +126,7 @@ export function AdminLayout() {
           </button>
         </div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3 pt-2">
-          {nav.map((item) => {
+          {navItems.map((item) => {
             const isActive = item.end ? loc.pathname === '/admin' : loc.pathname.startsWith(item.to)
             return (
               <Link
@@ -167,36 +176,42 @@ export function AdminLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <a
-              href={`${window.location.origin}/loja/${store.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-medium text-brand-700 hover:underline"
-            >
-              Catálogo da Loja
-            </a>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 shadow-sm hover:bg-ink-50"
-              onClick={async () => {
-                const url = `${window.location.origin}/loja/${store.slug}`
-                try {
-                  const ok = await copyText(url)
-                  if (ok) {
-                    notifyOk('Link do catálogo copiado.')
-                    return
-                  }
-                  window.prompt('Copie manualmente o link:', url)
-                  notifyErr('Cópia automática não disponível neste dispositivo.')
-                } catch {
-                  window.prompt('Copie manualmente o link:', url)
-                  notifyErr('Não foi possível copiar automaticamente.')
-                }
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copiar link
-            </button>
+            {!storeLocked ? (
+              <>
+                <a
+                  href={`${window.location.origin}/loja/${store.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-medium text-brand-700 hover:underline"
+                >
+                  Catálogo da Loja
+                </a>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 shadow-sm hover:bg-ink-50"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/loja/${store.slug}`
+                    try {
+                      const ok = await copyText(url)
+                      if (ok) {
+                        notifyOk('Link do catálogo copiado.')
+                        return
+                      }
+                      window.prompt('Copie manualmente o link:', url)
+                      notifyErr('Cópia automática não disponível neste dispositivo.')
+                    } catch {
+                      window.prompt('Copie manualmente o link:', url)
+                      notifyErr('Não foi possível copiar automaticamente.')
+                    }
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copiar link
+                </button>
+              </>
+            ) : (
+              <span className="text-xs font-medium text-amber-800">Loja inativa</span>
+            )}
           </div>
         </header>
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">

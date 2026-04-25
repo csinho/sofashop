@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { notifyOk } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getPwaBrandName } from '@/lib/documentTitle'
+import { isPlatformAdmin } from '@/services/platformService'
 
 export function LoginPage() {
   useEffect(() => {
@@ -27,8 +28,14 @@ export function LoginPage() {
     setLoading(true)
     try {
       await signIn(email, password)
+      const master = await isPlatformAdmin()
+      if (master) {
+        notifyOk('Login realizado. Painel da plataforma.')
+        nav('/plataforma/lojas', { replace: true })
+        return
+      }
       notifyOk('Login realizado.')
-      nav('/admin')
+      nav('/admin', { replace: true })
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Não foi possível entrar.')
     } finally {
@@ -68,8 +75,8 @@ export function LoginPage() {
         ← Voltar
       </Link>
       <Card>
-        <h1 className="font-display text-2xl font-semibold text-ink-900">Acesso da loja</h1>
-        <p className="mt-1 text-sm text-ink-500">Use o e-mail cadastrado na sua loja.</p>
+        <h1 className="font-display text-2xl font-semibold text-ink-900">Entrar</h1>
+        <p className="mt-1 text-sm text-ink-500">Lojas: use o e-mail da loja. Admin da plataforma: o mesmo login leva ao painel geral.</p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
             <label className="text-xs font-medium text-ink-600">E-mail</label>
@@ -104,6 +111,12 @@ export function LoginPage() {
         <Link className="font-semibold text-brand-700 hover:underline" to="/cadastro">
           Cadastre-se
         </Link>
+      </p>
+      <p className="mt-3 text-center text-xs text-ink-500">
+        <Link className="font-medium text-ink-600 underline decoration-ink-300 hover:text-brand-700" to="/plataforma/lojas">
+          Acesso direto ao painel da plataforma
+        </Link>
+        {' '}(já autenticado)
       </p>
     </div>
   )

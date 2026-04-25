@@ -23,6 +23,9 @@ import { FinancePage } from '@/pages/admin/FinancePage'
 import { SettingsPage } from '@/pages/admin/SettingsPage'
 import { CatalogDataPage } from '@/pages/admin/CatalogDataPage'
 import { PwaEntryHandler } from '@/components/PwaEntryHandler'
+import { PlatformLayout } from '@/pages/platform/PlatformLayout'
+import { PlatformStoreDetailPage } from '@/pages/platform/PlatformStoreDetailPage'
+import { PlatformStoresPage } from '@/pages/platform/PlatformStoresPage'
 
 function configured() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -62,6 +65,12 @@ export default function App() {
               <Route path="financeiro" element={<FinancePage />} />
               <Route path="dados-catalogo" element={<CatalogDataPage />} />
               <Route path="configuracoes" element={<SettingsPage />} />
+            </Route>
+
+            <Route path="/plataforma" element={<PlatformLayout />}>
+              <Route index element={<Navigate to="/plataforma/lojas" replace />} />
+              <Route path="lojas" element={<PlatformStoresPage />} />
+              <Route path="lojas/:storeId" element={<PlatformStoreDetailPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

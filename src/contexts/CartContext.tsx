@@ -95,7 +95,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clear = useCallback(() => {
-    setLines([])
     if (storeId) {
       try {
         localStorage.removeItem(storageKey(storeId))
@@ -103,6 +102,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     }
+    setLines([])
+    setStoreIdState(null)
   }, [storeId])
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines])

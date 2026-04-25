@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
+import { ListPaginationBar } from '@/components/ui/ListPaginationBar'
 import { Input } from '@/components/ui/Input'
+import { useListPagination } from '@/hooks/useListPagination'
 import { formatCurrency } from '@/lib/format'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
@@ -20,6 +22,10 @@ export function CustomersPage() {
   const q = params.get('q') ?? ''
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
+  const listForPagination = !loading ? rows : []
+  const { pageItems, page, setPage, pageCount, showPagination, total: listTotal } = useListPagination(
+    listForPagination,
+  )
 
   useEffect(() => {
     let alive = true
@@ -78,7 +84,7 @@ export function CustomersPage() {
             <p className="text-sm text-ink-500">Nenhum cliente encontrado.</p>
           </Card>
         ) : (
-          rows.map((r) => {
+          pageItems.map((r) => {
             const ords = r.orders ?? []
             const spent = ords.reduce((s, o) => s + Number(o.total), 0)
             const recurring = ords.length > 1
@@ -124,7 +130,7 @@ export function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
-              {rows.map((r) => {
+              {pageItems.map((r) => {
                 const ords = r.orders ?? []
                 const spent = ords.reduce((s, o) => s + Number(o.total), 0)
                 const recurring = ords.length > 1
@@ -158,6 +164,18 @@ export function CustomersPage() {
           </table>
         )}
       </Card>
+
+      <ListPaginationBar
+        show={showPagination}
+        page={page}
+        pageCount={pageCount}
+        total={listTotal}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(pageCount, p + 1))}
+        itemSingular="cliente"
+        itemPlural="clientes"
+        ariaLabel="Paginação da lista de clientes"
+      />
     </div>
   )
 }

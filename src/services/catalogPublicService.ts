@@ -1,11 +1,46 @@
 import { getSupabaseCatalogClient } from '@/integrations/supabase/client'
 import type { CatalogStoreRow } from '@/types/database'
 
-export async function fetchCatalogStoreBySlug(slug: string) {
+export type PublicCatalogAccess =
+  | { status: 'ok'; store: CatalogStoreRow }
+  | { status: 'not_found' }
+  | { status: 'inactive'; trade_name: string }
+  | { status: 'unpublished'; trade_name: string }
+
+function parseCatalogRow(raw: unknown): CatalogStoreRow {
+  const s = raw as Record<string, unknown> & { checkout_payment_config?: unknown }
+  return {
+    ...(s as unknown as CatalogStoreRow),
+    checkout_payment_config: (s.checkout_payment_config ?? null) as CatalogStoreRow['checkout_payment_config'],
+  }
+}
+
+/**
+ * Loja pública: usa RPC (slug inativo / não publicado / 404) sem vazar CPF, etc.
+ */
+export async function fetchPublicCatalogAccess(slug: string): Promise<PublicCatalogAccess> {
   const sb = getSupabaseCatalogClient()
-  const { data, error } = await sb.from('catalog_stores_v').select('*').eq('slug', slug).maybeSingle()
+  const { data, error } = await sb.rpc('get_public_catalog_store', { p_slug: slug })
   if (error) throw error
-  return data as CatalogStoreRow | null
+  const j = (typeof data === 'string' ? JSON.parse(data) : data) as Record<string, unknown>
+  const st = j.status as string
+  if (st === 'ok' && j.store) {
+    const store = parseCatalogRow(j.store)
+    return { status: 'ok', store: { ...store, is_active: true } }
+  }
+  if (st === 'inactive' && j.trade_name) {
+    return { status: 'inactive', trade_name: String(j.trade_name) }
+  }
+  if (st === 'unpublished' && j.trade_name) {
+    return { status: 'unpublished', trade_name: String(j.trade_name) }
+  }
+  return { status: 'not_found' }
+}
+
+/** @deprecated Prefer fetchPublicCatalogAccess. Mantido para retorno só da loja “ok”. */
+export async function fetchCatalogStoreBySlug(slug: string): Promise<CatalogStoreRow | null> {
+  const res = await fetchPublicCatalogAccess(slug)
+  return res.status === 'ok' ? res.store : null
 }
 
 export type CatalogProductFilters = {
