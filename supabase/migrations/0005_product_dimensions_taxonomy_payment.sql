@@ -1,4 +1,5 @@
 -- Dimensões do produto, tipos de modelo por loja, config de checkout (taxas) e view atualizada.
+-- A view public.catalog_stores_v é recriada em 0009 (filtro publicado + loja ativa + colunas finais).
 
 ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS dimension_length_cm numeric(12, 2),

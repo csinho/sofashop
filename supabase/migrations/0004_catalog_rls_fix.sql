@@ -1,4 +1,7 @@
 -- ============================================================================
+-- store_catalog_is_live: versão inicial (só catalog_published). Em 0009 a função
+-- passa a exigir também is_active; view catalog_stores_v e RPCs de catálogo alinham.
+--
 -- Correção: catálogo público não listava produtos.
 -- Motivo: políticas RLS faziam EXISTS em public.stores, mas o papel anon não tem
 -- SELECT em stores (apenas na view catalog_stores_v). O PostgreSQL exige

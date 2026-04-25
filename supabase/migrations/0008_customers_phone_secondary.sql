@@ -1,4 +1,6 @@
 -- Telefone alternativo do cliente final (opcional) para contato quando o principal não atende.
+-- Após 0009: a checagem de "loja disponível" em checkout/resolve passa a usar
+-- public.store_catalog_is_live (catálogo publicado E loja ativa). Ver fim de 0009.
 
 ALTER TABLE public.customers
   ADD COLUMN IF NOT EXISTS phone_secondary text NOT NULL DEFAULT '';
@@ -155,7 +157,10 @@ GRANT EXECUTE ON FUNCTION public.checkout_catalog_order(uuid, jsonb, jsonb, json
 -- Resolve: devolve telefone alternativo para pré-preencher checkout.
 -- LANGUAGE sql: sem variáveis PL/pgSQL (evita erro "relation v_payload does not exist"
 -- ao colar só parte do script no editor do Supabase).
+-- Troca a implementação plpgsql de 0006: DROP é necessário para mudar a linguagem.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.resolve_catalog_customer(uuid, uuid, text);
+
 CREATE OR REPLACE FUNCTION public.resolve_catalog_customer(
   p_store_id uuid,
   p_customer_id uuid DEFAULT NULL,

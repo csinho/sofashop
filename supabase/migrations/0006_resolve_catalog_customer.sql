@@ -1,4 +1,5 @@
--- Busca cliente do catálogo por id ou telefone (loja publicada). Usado no checkout para pré-preencher dados.
+-- Busca cliente do catálogo por id ou telefone. Substituição com phone_secondary: 0008;
+-- alinhamento a loja ativa: 0009 (store_catalog_is_live). Este arquivo fica obsoleto após 0008/0009.
 CREATE OR REPLACE FUNCTION public.resolve_catalog_customer(
   p_store_id uuid,
   p_customer_id uuid DEFAULT NULL,

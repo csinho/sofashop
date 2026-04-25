@@ -1,6 +1,22 @@
 -- ============================================================================
 -- SofáShop Multi-loja — schema PostgreSQL (Supabase)
 -- Execute no SQL Editor ou via CLI após criar o projeto.
+--
+-- Cadeia de migrations (aplicar em ordem numérica; dependências entre arquivos):
+--   0001  Schema base: tipos, tabelas, RLS básico em tabelas, views iniciais,
+--        RPCs checkout (v1) e register_store, catálogo (funções iniciais).
+--   0002  RLS por loja, catalog_stores_v (redefinida depois), GRANTs.
+--   0003  Storage (bucket de imagens, políticas).
+--   0004  store_catalog_is_live (v1: só publicado) e correção de políticas de leitura pública.
+--   0005  Colunas de dimensão em products, checkout_payment_config em stores, tabela
+--        product_model_types, seed de tipos, view catalog_stores_v com config de pagamento.
+--   0006  resolve_catalog_customer (plpgsql; substituída em 0008).
+--   0007  customers.internal_notes.
+--   0008  customers.phone_secondary*; checkout/resolve (v2) com telefone alternativo;
+--        a verificação "loja publicada + ativa" aplica-se em 0009 via store_catalog_is_live.
+--   0009  stores.is_active, platform_admins, is_platform_admin, guard is_active, view e
+--        função store_catalog_is_live (v2: publicado E ativo), plataforma (list/get store),
+--        checkout/resolve (v3) alinhados a loja ativa.
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

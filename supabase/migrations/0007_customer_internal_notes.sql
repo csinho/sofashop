@@ -1,3 +1,4 @@
+-- Observações internas do cliente (somente painel da loja; não no catálogo).
 ALTER TABLE public.customers
 ADD COLUMN IF NOT EXISTS internal_notes text NOT NULL DEFAULT '';
 

@@ -1,5 +1,6 @@
 -- ============================================================================
 -- RLS — isolamento por loja (tenant). Nunca use service_role no frontend.
+-- catalog_stores_v aqui é a primeira versão; 0005/0009 recriam a view (colunas e filtros).
 -- ============================================================================
 
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;

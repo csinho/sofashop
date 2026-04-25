@@ -1,5 +1,6 @@
 -- ============================================================================
--- Storage — bucket único "store-assets" (logos + produtos + variações)
+-- Storage — bucket "store-assets" (logos, produtos, variações). Complementa 0002/0001;
+-- policies aqui são só de storage.objects, não confundir com RLS de public.*.
 -- Crie o bucket no Dashboard (Storage → New bucket) com nome: store-assets
 -- Marque como público se quiser URLs diretas, ou use signed URLs (recomendado
 -- em produção com RLS de storage mais restrita).
