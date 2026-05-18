@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
 import { formatCurrency, formatDateTime } from '@/lib/format'
+import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import { ORDER_STATUS_LABEL } from '@/constants/orderStatus'
 import { formatOrderPaymentSummary } from '@/lib/orderPaymentSummary'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { generateOrderPdf } from '@/services/orderPdf'
 import { notifyErr, notifyOk } from '@/lib/notify'
+import { sendOrderStatusWhatsApp, whatsAppStatusNotifyToasts } from '@/services/whatsappSendService'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
 import type { OrderStatus, PaymentDetails, PaymentKind } from '@/types/database'
 
@@ -92,8 +94,19 @@ export function OrderDetailPage() {
       changed_by: user.id,
       note: 'Atualizado pelo painel',
     })
+    const previousStatus = order.status
     setOrder({ ...order, status })
     notifyOk('Status do pedido atualizado.')
+    const wa = await sendOrderStatusWhatsApp({
+      storeId: store.id,
+      orderId: order.id,
+      newStatus: status,
+      previousStatus,
+    })
+    for (const t of whatsAppStatusNotifyToasts(wa, status)) {
+      if (t.type === 'ok') notifyOk(t.text)
+      else notifyErr(t.text)
+    }
   }
 
   async function onPdf() {
@@ -197,9 +210,13 @@ export function OrderDetailPage() {
               {String((order.customer_snapshot as Record<string, unknown> | undefined)?.full_name ?? '')}
             </p>
             <p className="text-sm text-ink-600">
-              {String((order.customer_snapshot as Record<string, unknown> | undefined)?.phone ?? '')}
+              {formatBrazilPhoneDisplay(
+                String((order.customer_snapshot as Record<string, unknown> | undefined)?.phone ?? ''),
+              )}
             </p>
-            {phoneSecondaryDisplay ? <p className="text-sm text-ink-600">{phoneSecondaryDisplay}</p> : null}
+            {phoneSecondaryDisplay ? (
+              <p className="text-sm text-ink-600">{formatBrazilPhoneDisplay(phoneSecondaryDisplay)}</p>
+            ) : null}
           </Card>
           <Card>
             <h3 className="font-display text-lg font-semibold text-ink-900">Entrega</h3>

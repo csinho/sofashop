@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Textarea } from '@/components/ui/Textarea'
 import { formatCurrency, formatDateTime } from '@/lib/format'
+import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import { ORDER_STATUS_LABEL } from '@/constants/orderStatus'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { notifyErr, notifyOk } from '@/lib/notify'
@@ -81,8 +82,10 @@ export function CustomerDetailPage() {
         </Link>
         <Card>
           <h2 className="font-display text-2xl font-semibold text-ink-900 lg:text-3xl">{c.full_name}</h2>
-          <p className="mt-1 text-sm text-ink-600">{c.phone}</p>
-          {c.phone_secondary?.trim() ? <p className="text-sm text-ink-600">{c.phone_secondary}</p> : null}
+          <p className="mt-1 text-sm text-ink-600">{formatBrazilPhoneDisplay(c.phone)}</p>
+          {c.phone_secondary?.trim() ? (
+            <p className="text-sm text-ink-600">{formatBrazilPhoneDisplay(c.phone_secondary)}</p>
+          ) : null}
           {c.email ? <p className="text-sm text-ink-600">{c.email}</p> : null}
           <p className="mt-4 text-sm font-medium text-ink-900">Total gasto: {formatCurrency(spent)}</p>
         </Card>

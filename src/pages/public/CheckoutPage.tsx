@@ -7,12 +7,12 @@ import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
 import { maskCep, maskPhone } from '@/lib/masks'
 import { onlyDigits } from '@/lib/format'
+import { toBrazilStorageDigits } from '@/lib/phoneBr'
 import { validateBrazilPhone } from '@/lib/validators/phone'
 import { fetchAddressByCep } from '@/integrations/viacep'
 import { useCart } from '@/contexts/CartContext'
 import { resolveCatalogCustomer, submitCheckout, type ResolvedCatalogCustomer } from '@/services/checkoutService'
 import { loadCheckoutIdentity, saveCheckoutIdentity } from '@/lib/catalogCheckoutStorage'
-import { buildWhatsAppMessage, openWhatsApp } from '@/services/whatsappMessage'
 import type { PaymentKind } from '@/types/database'
 import type { CatalogOutletCtx } from '@/pages/public/catalogTypes'
 import { formatCurrency } from '@/lib/format'
@@ -22,6 +22,9 @@ import { parseMoneyBRL } from '@/lib/moneyInput'
 import { PAYMENT_LABEL } from '@/constants/payments'
 import { IntegerField } from '@/components/ui/IntegerField'
 import { notifyOk } from '@/lib/notify'
+import { checkPhoneHasWhatsApp } from '@/services/whatsappCheckService'
+import { getCheckoutErrorMessage } from '@/lib/checkoutError'
+import { notifyCheckoutOrderWhatsApp } from '@/services/whatsappSendService'
 
 export function CheckoutPage() {
   const { store, slug } = useOutletContext<CatalogOutletCtx>()
@@ -47,6 +50,8 @@ export function CheckoutPage() {
 
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [phoneWaChecking, setPhoneWaChecking] = useState(false)
+  const [phoneWaInvalid, setPhoneWaInvalid] = useState(false)
 
   const payCfg = useMemo(() => resolveCheckoutConfig(store), [store.id, store.checkout_payment_config])
 
@@ -100,16 +105,37 @@ export function CheckoutPage() {
     }
   }, [store.id, payCfg, payKind])
 
+  const tryValidateWhatsApp = useCallback(async () => {
+    const pv = validateBrazilPhone(phone)
+    if (!pv.ok) {
+      setPhoneWaInvalid(false)
+      return
+    }
+    setPhoneWaChecking(true)
+    setPhoneWaInvalid(false)
+    try {
+      const res = await checkPhoneHasWhatsApp(slug, toBrazilStorageDigits(phone))
+      if (res.skipped === false && !res.exists) {
+        setPhoneWaInvalid(true)
+      }
+    } catch {
+      /* rede/API indisponível: não bloqueia checkout */
+    } finally {
+      setPhoneWaChecking(false)
+    }
+  }, [slug, phone])
+
   const tryResolveByPhone = useCallback(async () => {
     const pv = validateBrazilPhone(phone)
     if (!pv.ok) return
     try {
-      const r = await resolveCatalogCustomer(store.id, { phone })
+      const r = await resolveCatalogCustomer(store.id, { phone: toBrazilStorageDigits(phone) })
       if (r) applyResolved(r)
     } catch {
       /* silencioso */
     }
-  }, [store.id, phone, applyResolved])
+    await tryValidateWhatsApp()
+  }, [store.id, phone, applyResolved, tryValidateWhatsApp])
 
   async function onCepBlur() {
     const c = onlyDigits(cep)
@@ -135,6 +161,10 @@ export function CheckoutPage() {
     const pv = validateBrazilPhone(phone)
     if (!pv.ok) {
       setErr(pv.message ?? 'Telefone inválido')
+      return
+    }
+    if (phoneWaInvalid) {
+      setErr('Este número não possui WhatsApp ativo. Informe um número válido.')
       return
     }
     const secTrim = phoneSecondary.trim()
@@ -184,25 +214,10 @@ export function CheckoutPage() {
         lines: storeLines,
       })
 
-      const created = new Date().toISOString()
-      const msg = buildWhatsAppMessage({
-        orderNumber: result.order_number,
-        customerName: fullName.trim(),
-        customerPhone: phone,
-        ...(secTrim ? { customerPhoneSecondary: phoneSecondary } : {}),
-        addressLines: [
-          `${street}, ${number}${complement ? ' — ' + complement : ''}`,
-          `${district} — ${city}/${stateUf} — CEP ${onlyDigits(cep)}`,
-        ],
-        lines: storeLines,
-        subtotal,
-        paymentKind: payKind,
-        paymentDetails,
-        notes,
-        createdAtIso: created,
-      })
-
-      notifyOk('Pedido registrado. Abrindo o WhatsApp…')
+      notifyOk('Pedido registrado! Você receberá a confirmação no WhatsApp.')
+      if (result.order_id) {
+        void notifyCheckoutOrderWhatsApp(store.id, result.order_id)
+      }
       saveCheckoutIdentity(store.id, {
         customerId: result.customer_id || null,
         fullName: fullName.trim(),
@@ -217,13 +232,11 @@ export function CheckoutPage() {
         state: stateUf,
       })
       clear()
-      const wa = store.whatsapp_orders_phone || store.whatsapp_1
-      openWhatsApp(wa, msg)
       nav(`/loja/${slug}/obrigado`, {
         state: { orderNumber: result.order_number },
       })
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Não foi possível finalizar o pedido.')
+      setErr(getCheckoutErrorMessage(e))
     } finally {
       setLoading(false)
     }
@@ -267,10 +280,18 @@ export function CheckoutPage() {
             <Input
               className="mt-1"
               value={phone}
-              onChange={(e) => setPhone(maskPhone(e.target.value))}
+              onChange={(e) => {
+                setPhone(maskPhone(e.target.value))
+                setPhoneWaInvalid(false)
+              }}
               onBlur={() => void tryResolveByPhone()}
               required
             />
+            {phoneWaChecking ? (
+              <p className="mt-1 text-xs text-ink-500">Verificando WhatsApp…</p>
+            ) : phoneWaInvalid ? (
+              <p className="mt-1 text-xs text-red-600">Este número não possui WhatsApp ativo.</p>
+            ) : null}
           </div>
           <div>
             <label className="text-xs font-medium text-ink-600">Outro telefone (opcional)</label>

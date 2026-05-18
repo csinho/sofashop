@@ -1,4 +1,5 @@
 import { getSupabaseCatalogClient } from '@/integrations/supabase/client'
+import { toBrazilStorageDigits } from '@/lib/phoneBr'
 import type { Json } from '@/types/database'
 import type { PaymentDetails, PaymentKind } from '@/types/database'
 import type { CartLine } from '@/contexts/CartContext'
@@ -45,7 +46,7 @@ export async function resolveCatalogCustomer(
   const { data, error } = await sb.rpc('resolve_catalog_customer', {
     p_store_id: storeId,
     p_customer_id: opts.customerId ?? null,
-    p_phone: opts.phone ?? null,
+    p_phone: opts.phone ? toBrazilStorageDigits(opts.phone) : null,
   })
   if (error) throw error
   return parseResolvedCustomer(data)
@@ -92,9 +93,17 @@ export async function submitCheckout(payload: CheckoutPayload) {
     } as Json,
   }))
 
+  const customer = {
+    ...payload.customer,
+    phone: toBrazilStorageDigits(payload.customer.phone),
+    ...(payload.customer.phone_secondary
+      ? { phone_secondary: toBrazilStorageDigits(payload.customer.phone_secondary) }
+      : {}),
+  }
+
   const { data, error } = await sb.rpc('checkout_catalog_order', {
     p_store_id: payload.storeId,
-    p_customer: payload.customer as Json,
+    p_customer: customer as Json,
     p_shipping: payload.shipping as Json,
     p_items: items as unknown as Json,
     p_payment: payload.paymentDetails as Json,

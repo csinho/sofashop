@@ -7,24 +7,28 @@ import { Card } from '@/components/ui/Card'
 import { ColorField } from '@/components/ui/ColorField'
 import { maskCep, maskCpfCnpj, maskPhone } from '@/lib/masks'
 import { onlyDigits } from '@/lib/format'
+import { formatBrazilPhoneDisplay, toBrazilStorageDigits } from '@/lib/phoneBr'
 import { validateCpfCnpj } from '@/lib/validators/cpfCnpj'
 import { fetchAddressByCep } from '@/integrations/viacep'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { useMyStore } from '@/hooks/useMyStore'
 import { notifyErr, notifyOk } from '@/lib/notify'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
+import { SettingsTabs, type SettingsTabId } from '@/pages/admin/settings/SettingsTabs'
+import { WhatsAppSettingsTab } from '@/pages/admin/settings/WhatsAppSettingsTab'
 
 export function SettingsPage() {
   const { store } = useOutletContext<AdminOutletCtx>()
   const { refresh } = useMyStore()
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('identity')
 
   const [tradeName, setTradeName] = useState(store.trade_name)
   const [legalName, setLegalName] = useState(store.legal_name)
   const [doc, setDoc] = useState(store.document)
-  const [phoneMain, setPhoneMain] = useState(store.phone_main)
-  const [wa1, setWa1] = useState(store.whatsapp_1)
-  const [wa2, setWa2] = useState(store.whatsapp_2)
-  const [waOrder, setWaOrder] = useState(store.whatsapp_orders_phone)
+  const [phoneMain, setPhoneMain] = useState(() => formatBrazilPhoneDisplay(store.phone_main))
+  const [wa1, setWa1] = useState(() => formatBrazilPhoneDisplay(store.whatsapp_1))
+  const [wa2, setWa2] = useState(() => formatBrazilPhoneDisplay(store.whatsapp_2))
+  const [waOrder, setWaOrder] = useState(() => formatBrazilPhoneDisplay(store.whatsapp_orders_phone))
   const [cep, setCep] = useState(store.cep)
   const [street, setStreet] = useState(store.street)
   const [number, setNumber] = useState(store.number)
@@ -131,10 +135,10 @@ export function SettingsPage() {
         legal_name: legalName.trim(),
         document_kind: dv.kind,
         document: onlyDigits(doc),
-        phone_main: phoneMain,
-        whatsapp_1: wa1,
-        whatsapp_2: wa2,
-        whatsapp_orders_phone: onlyDigits(waOrder),
+        phone_main: toBrazilStorageDigits(phoneMain),
+        whatsapp_1: toBrazilStorageDigits(wa1),
+        whatsapp_2: wa2.trim() ? toBrazilStorageDigits(wa2) : '',
+        whatsapp_orders_phone: toBrazilStorageDigits(waOrder),
         cep: onlyDigits(cep),
         street: street.trim(),
         number: number.trim(),
@@ -167,7 +171,17 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h2 className="font-display text-2xl font-semibold text-ink-900">Configurações</h2>
+      <SettingsTabs active={activeTab} onChange={setActiveTab} />
+
+      {activeTab === 'whatsapp' ? (
+        <WhatsAppSettingsTab
+          storeId={store.id}
+          ordersPhoneDigits={store.whatsapp_orders_phone}
+          onGoToContact={() => setActiveTab('contact')}
+        />
+      ) : (
       <form className="space-y-6" onSubmit={onSave}>
+        {activeTab === 'identity' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">Identidade</h3>
           <div>
@@ -248,7 +262,9 @@ export function SettingsPage() {
             <ColorField id="themeA" label="Cor de destaque (botões e preços)" value={themeA} onChange={setThemeA} />
           </div>
         </Card>
+        ) : null}
 
+        {activeTab === 'contact' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">Contato</h3>
           <div>
@@ -264,11 +280,13 @@ export function SettingsPage() {
             <Input className="mt-1" value={wa2} onChange={(e) => setWa2(maskPhone(e.target.value))} />
           </div>
           <div>
-            <label className="text-xs font-medium text-ink-600">WhatsApp principal para pedidos (somente dígitos)</label>
+            <label className="text-xs font-medium text-ink-600">WhatsApp principal para pedidos</label>
             <Input className="mt-1" value={waOrder} onChange={(e) => setWaOrder(maskPhone(e.target.value))} />
           </div>
         </Card>
+        ) : null}
 
+        {activeTab === 'address' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">Endereço</h3>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -304,7 +322,9 @@ export function SettingsPage() {
             <Input className="mt-1" value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
         </Card>
+        ) : null}
 
+        {activeTab === 'catalog' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">PDF e catálogo</h3>
           <div>
@@ -316,11 +336,13 @@ export function SettingsPage() {
             <Textarea className="mt-1" value={policy} onChange={(e) => setPolicy(e.target.value)} rows={3} />
           </div>
         </Card>
+        ) : null}
 
         <Button type="submit" loading={saving}>
           Salvar alterações
         </Button>
       </form>
+      )}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { ListPaginationBar } from '@/components/ui/ListPaginationBar'
 import { Input } from '@/components/ui/Input'
 import { useListPagination } from '@/hooks/useListPagination'
 import { formatCurrency } from '@/lib/format'
+import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
 
@@ -102,8 +103,10 @@ export function CustomersPage() {
                   </Link>
                 </div>
                 <div className="space-y-0.5 text-sm text-ink-700">
-                  <p>{r.phone}</p>
-                  {r.phone_secondary?.trim() ? <p className="text-xs text-ink-500">{r.phone_secondary}</p> : null}
+                  <p>{formatBrazilPhoneDisplay(r.phone)}</p>
+                  {r.phone_secondary?.trim() ? (
+                    <p className="text-xs text-ink-500">{formatBrazilPhoneDisplay(r.phone_secondary)}</p>
+                  ) : null}
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <p className="text-ink-600">Pedidos: <strong className="text-ink-900">{ords.length}</strong></p>
@@ -145,9 +148,9 @@ export function CustomersPage() {
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-ink-600">
-                      <span className="block">{r.phone}</span>
+                      <span className="block">{formatBrazilPhoneDisplay(r.phone)}</span>
                       {r.phone_secondary?.trim() ? (
-                        <span className="block text-xs text-ink-500">{r.phone_secondary}</span>
+                        <span className="block text-xs text-ink-500">{formatBrazilPhoneDisplay(r.phone_secondary)}</span>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">{ords.length}</td>

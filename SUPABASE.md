@@ -18,6 +18,10 @@ No **SQL Editor**, execute **nesta ordem**:
 
 Se a loja e o cabeçalho do catálogo aparecem, mas **nenhum produto** lista, é quase sempre porque o passo 4 ainda não foi aplicado em projetos criados antes desta migração.
 
+5. `supabase/migrations/0010_whatsapp.sql` — instância WhatsApp por loja (Evolution API), log de mensagens, view segura sem token.
+6. `supabase/migrations/0011_whatsapp_safe_rpc.sql` — RPC `get_store_whatsapp_instance_safe`.
+7. `supabase/migrations/0013_whatsapp_templates_group.sql` — templates por status (`notify_settings`), grupo de pedidos na loja, `app_base_url`, log `recipient_kind`.
+
 Se preferir CLI: `supabase db push` (com projeto linkado).
 
 ## 3. Políticas RLS (resumo)
@@ -53,7 +57,77 @@ Crie `.env` na raiz (veja `.env.example`):
 ## 7. O que nunca vai para o frontend
 
 - **`service_role` secret**: ignora RLS; vazou = vazamento total do banco. Use só em backend, scripts administrativos ou Edge Functions com segredo.
-- **Chaves de API de terceiros** sensíveis**: mesmo princípio.
+- **Chaves de API de terceiros** sensíveis: mesmo princípio (ex.: `EVOLUTION_API_KEY`, token por instância WhatsApp).
+
+## 7.1 WhatsApp (Evolution API) — Edge Functions
+
+Após aplicar as migrações WhatsApp (`0010`, `0011`, `0013`), faça o deploy das funções em `supabase/functions/`:
+
+```bash
+supabase login
+supabase functions deploy whatsapp-admin --project-ref SEU_PROJECT_REF
+supabase functions deploy whatsapp-webhook --project-ref SEU_PROJECT_REF
+supabase functions deploy whatsapp-check --project-ref SEU_PROJECT_REF
+supabase functions deploy whatsapp-send --project-ref SEU_PROJECT_REF
+supabase functions deploy whatsapp-notify-checkout --project-ref SEU_PROJECT_REF --no-verify-jwt
+```
+
+Ou gere o bundle local e publique com token (recomendado se `supabase login` falhar no navegador):
+
+```bash
+node scripts/bundle-whatsapp-edge.mjs whatsapp-admin
+node scripts/publish-edge-from-bundle.mjs whatsapp-admin
+```
+
+Ou no PowerShell (lê o token do `.env`):
+
+```powershell
+.\scripts\deploy-whatsapp-admin.ps1
+.\scripts\deploy-whatsapp-all.ps1
+```
+
+### Login do CLI (`supabase login`) não abre ou dá "Unable to create CLI sign-in"
+
+Isso é um problema conhecido (navegador, extensões, rede ou sessão no dashboard). **Use um Personal Access Token** em vez do fluxo pelo browser:
+
+1. Abra [https://supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) (logado na conta certa).
+2. **Generate new token** → copie o valor (começa com `sbp_`).
+3. No PowerShell, na pasta do projeto:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "sbp_COLE_SEU_TOKEN_AQUI"
+node scripts/bundle-whatsapp-edge.mjs whatsapp-admin
+node scripts/publish-edge-from-bundle.mjs whatsapp-admin
+```
+
+Alternativa equivalente:
+
+```powershell
+npx supabase login --token sbp_COLE_SEU_TOKEN_AQUI
+npx supabase functions deploy whatsapp-admin --project-ref hacpynysbnetrsxaekxz
+```
+
+Dicas se o browser ainda for necessário: aba anônima, desative bloqueadores de anúncio na página `supabase.com`, ou tente outro navegador. O token **não** vai para o `.env` do frontend — só na sessão do terminal ou em variável de ambiente local para deploy.
+
+Ou gere bundles das demais funções:
+
+```bash
+node scripts/bundle-whatsapp-edge.mjs whatsapp-send
+node scripts/bundle-whatsapp-edge.mjs whatsapp-notify-checkout
+node scripts/bundle-whatsapp-edge.mjs whatsapp-webhook
+```
+
+Em *Project Settings → Edge Functions → Secrets*, configure:
+
+| Secret | Exemplo |
+|--------|---------|
+| `EVOLUTION_API_URL` | `https://whats.sofashop.digital` |
+| `EVOLUTION_API_KEY` | chave global da Evolution (header `apikey`) |
+| `APP_PUBLIC_URL` | (opcional) URL pública do app, ex. `https://app.sofashop.digital` — fallback para links de pedido no grupo quando o admin ainda não salvou `app_base_url` |
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são injetados automaticamente pelo Supabase.
+
+O painel usa a aba **WhatsApp** em `/admin/configuracoes` (templates `{{NOME_CLIENTE}}`, `{{NUMERO_PEDIDO}}`, `{{STATUS_PEDIDO}}`). O checkout dispara `whatsapp-notify-checkout` (cliente + grupo interno); não abre mais `wa.me`.
 
 ## 8. Conectar o app ao Supabase
 

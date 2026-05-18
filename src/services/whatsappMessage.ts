@@ -1,4 +1,5 @@
 import { formatCurrency, formatDateTime } from '@/lib/format'
+import { formatBrazilPhoneDisplay, toBrazilStorageDigits } from '@/lib/phoneBr'
 import { PAYMENT_LABEL } from '@/constants/payments'
 import type { PaymentKind } from '@/types/database'
 import type { CartLine } from '@/contexts/CartContext'
@@ -36,9 +37,9 @@ export function buildWhatsAppMessage(s: WhatsAppOrderSummary) {
   const when = `📅 ${formatDateTime(s.createdAtIso)}`
   const cust = [
     `👤 *Cliente:* ${s.customerName}`,
-    `📞 *Telefone:* ${s.customerPhone}`,
+    `📞 *Telefone:* ${formatBrazilPhoneDisplay(s.customerPhone)}`,
     ...(s.customerPhoneSecondary?.trim()
-      ? [`📞 *Telefone 2:* ${s.customerPhoneSecondary.trim()}`]
+      ? [`📞 *Telefone 2:* ${formatBrazilPhoneDisplay(s.customerPhoneSecondary)}`]
       : []),
     `📍 *Endereço:*`,
     ...s.addressLines.map((l) => `   ${l}`),
@@ -69,7 +70,7 @@ export function buildWhatsAppMessage(s: WhatsAppOrderSummary) {
 }
 
 export function openWhatsApp(phoneDigits: string, text: string) {
-  const n = phoneDigits.replace(/\D/g, '')
-  const url = `https://wa.me/55${n}?text=${encodeURIComponent(text)}`
+  const n = toBrazilStorageDigits(phoneDigits)
+  const url = `https://wa.me/${n}?text=${encodeURIComponent(text)}`
   window.open(url, '_blank', 'noopener,noreferrer')
 }

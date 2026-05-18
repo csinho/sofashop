@@ -9,6 +9,7 @@ import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
 import { MoneyField } from '@/components/ui/MoneyField'
 import { IntegerField } from '@/components/ui/IntegerField'
 import { formatCurrency } from '@/lib/format'
+import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import { parseMoneyBRL } from '@/lib/moneyInput'
 import {
   effectivePrice,
@@ -132,8 +133,8 @@ export function CatalogPage() {
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-600">{store.institutional_text}</p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-3 text-sm text-ink-600">
-            <span>📞 {store.phone_main}</span>
-            <span>💬 {store.whatsapp_1}</span>
+            <span>📞 {formatBrazilPhoneDisplay(store.phone_main)}</span>
+            <span>💬 {formatBrazilPhoneDisplay(store.whatsapp_1)}</span>
           </div>
 
           <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center">

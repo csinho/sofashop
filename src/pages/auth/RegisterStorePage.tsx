@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { maskCep, maskCpfCnpj, maskPhone } from '@/lib/masks'
 import { onlyDigits } from '@/lib/format'
+import { toBrazilStorageDigits } from '@/lib/phoneBr'
 import { validateCpfCnpj } from '@/lib/validators/cpfCnpj'
 import { validateBrazilPhone } from '@/lib/validators/phone'
 import { fetchAddressByCep } from '@/integrations/viacep'
@@ -121,9 +122,9 @@ export function RegisterStorePage() {
         p_trade_name: tradeName.trim(),
         p_document_kind: dv.kind,
         p_document: onlyDigits(doc),
-        p_phone_main: phoneMain,
-        p_whatsapp_1: wa1,
-        p_whatsapp_2: wa2.trim() || '',
+        p_phone_main: toBrazilStorageDigits(phoneMain),
+        p_whatsapp_1: toBrazilStorageDigits(wa1),
+        p_whatsapp_2: wa2.trim() ? toBrazilStorageDigits(wa2) : '',
         p_email_contact: email.trim(),
         p_cep: onlyDigits(cep),
         p_street: street.trim(),
@@ -133,7 +134,7 @@ export function RegisterStorePage() {
         p_city: city.trim(),
         p_state: stateUf,
         p_logo_url: null,
-        p_whatsapp_orders_phone: onlyDigits(wa1),
+        p_whatsapp_orders_phone: toBrazilStorageDigits(wa1),
       })
 
       if (rpcErr) throw rpcErr

@@ -17,6 +17,18 @@ dist-ssr
 .env.*
 !.env.example
 
+# Artefatos locais de deploy (bundles / payloads temporários)
+supabase/functions/.bundle/
+supabase/.temp/
+.mcp-*
+.mcp-deploy*
+.cursor-deploy*
+.deploy-*
+deploy-*.json
+deploy-*.txt
+temp-deploy-*.json
+deploy-args-*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

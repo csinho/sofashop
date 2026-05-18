@@ -12,6 +12,8 @@ import { ORDER_STATUS_FLOW, ORDER_STATUS_LABEL } from '@/constants/orderStatus'
 import { PAYMENT_LABEL } from '@/constants/payments'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { notifyErr, notifyOk } from '@/lib/notify'
+import { sendOrderStatusWhatsApp, whatsAppStatusNotifyToasts } from '@/services/whatsappSendService'
+import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
 import type { OrderStatus, PaymentKind } from '@/types/database'
 import { cn } from '@/lib/cn'
@@ -119,6 +121,7 @@ export function OrdersPage() {
   }, [store.id, status, pay, q, view])
 
   async function moveOrder(orderId: string, newStatus: OrderStatus) {
+    const previous = rows.find((r) => r.id === orderId)?.status
     const sb = getSupabaseBrowserClient()
     const { error } = await sb.from('orders').update({ status: newStatus }).eq('id', orderId).eq('store_id', store.id)
     if (error) {
@@ -127,6 +130,16 @@ export function OrdersPage() {
     }
     setRows((prev) => prev.map((r) => (r.id === orderId ? { ...r, status: newStatus } : r)))
     notifyOk(`Pedido movido para “${ORDER_STATUS_LABEL[newStatus]}”.`)
+    const wa = await sendOrderStatusWhatsApp({
+      storeId: store.id,
+      orderId,
+      newStatus,
+      previousStatus: previous,
+    })
+    for (const t of whatsAppStatusNotifyToasts(wa, newStatus)) {
+      if (t.type === 'ok') notifyOk(t.text)
+      else notifyErr(t.text)
+    }
   }
 
   return (
@@ -314,8 +327,10 @@ export function OrdersPage() {
                       </div>
                       <div className="space-y-0.5 text-sm text-ink-700">
                         <p className="font-medium text-ink-900">{c?.full_name || 'Sem cliente'}</p>
-                        <p>{c?.phone || '—'}</p>
-                        {c?.phone_secondary?.trim() ? <p className="text-xs text-ink-500">{c.phone_secondary}</p> : null}
+                        <p>{c?.phone ? formatBrazilPhoneDisplay(c.phone) : '—'}</p>
+                        {c?.phone_secondary?.trim() ? (
+                          <p className="text-xs text-ink-500">{formatBrazilPhoneDisplay(c.phone_secondary)}</p>
+                        ) : null}
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -355,11 +370,11 @@ export function OrdersPage() {
                       <td className="px-4 py-3 text-ink-600">
                         {c?.full_name}
                         <br />
-                        <span className="text-xs">{c?.phone}</span>
+                        <span className="text-xs">{c?.phone ? formatBrazilPhoneDisplay(c.phone) : '—'}</span>
                         {c?.phone_secondary?.trim() ? (
                           <>
                             <br />
-                            <span className="text-xs text-ink-500">{c.phone_secondary}</span>
+                            <span className="text-xs text-ink-500">{formatBrazilPhoneDisplay(c.phone_secondary)}</span>
                           </>
                         ) : null}
                       </td>

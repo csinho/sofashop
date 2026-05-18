@@ -11,6 +11,37 @@ export type OrderStatus =
   | 'entregue'
   | 'cancelado'
 
+export type WhatsAppInstanceStatus = 'disconnected' | 'connecting' | 'connected' | 'paused'
+
+export type WhatsAppMessageDeliveryStatus = 'sent' | 'failed' | 'skipped'
+
+export type WhatsAppNotifyStatuses = Partial<Record<OrderStatus, boolean>>
+
+export type WhatsAppNotifySettingItem = {
+  enabled: boolean
+  template: string
+}
+
+export type WhatsAppNotifySettings = Partial<Record<OrderStatus, WhatsAppNotifySettingItem>>
+
+export type StoreWhatsAppInstanceSafeRow = {
+  id: string
+  created_at: string
+  updated_at: string
+  store_id: string
+  instance_name: string
+  instance_id: string | null
+  status: WhatsAppInstanceStatus
+  connection_state: string | null
+  profile_name: string | null
+  profile_picture_url: string | null
+  owner_number: string | null
+  owner_jid: string | null
+  notify_settings: WhatsAppNotifySettings
+  connected_at: string | null
+  paused_at: string | null
+}
+
 export type PaymentKind =
   | 'pix'
   | 'cartao_debito'
@@ -75,6 +106,10 @@ export type CatalogStoreRow = {
   theme_accent: string
   policy_text: string
   whatsapp_orders_phone: string
+  whatsapp_orders_group_jid?: string | null
+  whatsapp_orders_group_id?: string | null
+  whatsapp_orders_group_created_at?: string | null
+  app_base_url?: string | null
   catalog_published: boolean
   /** Loja com conta ativa (gestão e catálogo, conforme regras da UI). Sempre true quando vinda do catálogo “ok”. */
   is_active?: boolean
@@ -271,9 +306,45 @@ export type Database = {
           note: string
         }
       }
+      store_whatsapp_instances: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          store_id: string
+          instance_name: string
+          instance_id: string | null
+          instance_token: string
+          status: WhatsAppInstanceStatus
+          connection_state: string | null
+          profile_name: string | null
+          profile_picture_url: string | null
+          owner_number: string | null
+          owner_jid: string | null
+          notify_settings: WhatsAppNotifySettings
+          connected_at: string | null
+          paused_at: string | null
+        }
+      }
+      whatsapp_message_log: {
+        Row: {
+          id: string
+          created_at: string
+          store_id: string
+          order_id: string | null
+          customer_phone: string
+          order_status: OrderStatus | null
+          message_text: string
+          evolution_message_id: string | null
+          delivery_status: WhatsAppMessageDeliveryStatus
+          error_message: string | null
+          recipient_kind: 'customer' | 'store_group'
+        }
+      }
     }
     Views: {
       catalog_stores_v: { Row: CatalogStoreRow }
+      store_whatsapp_instances_safe: { Row: StoreWhatsAppInstanceSafeRow }
     }
     Functions: {
       register_store: { Args: Record<string, string | null>; Returns: string }
@@ -287,6 +358,11 @@ export type Database = {
       platform_list_stores: { Args: Record<string, never>; Returns: Json }
       platform_get_store: { Args: { p_store_id: string }; Returns: Json }
       platform_set_store_is_active: { Args: { p_store_id: string; p_is_active: boolean }; Returns: void }
+      get_store_whatsapp_instance_safe: { Args: { p_store_id: string }; Returns: Json }
+      update_store_whatsapp_notify_settings: {
+        Args: { p_store_id: string; p_settings: Json; p_app_base_url?: string | null }
+        Returns: Json
+      }
     }
     Enums: Record<string, never>
   }

@@ -1,6 +1,7 @@
 import autoTable from 'jspdf-autotable'
 import { jsPDF } from 'jspdf'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import { ORDER_STATUS_LABEL } from '@/constants/orderStatus'
 import { PAYMENT_LABEL } from '@/constants/payments'
 import { BRAND_ASSETS, brandAssetAbsoluteUrl } from '@/lib/brandAssets'
@@ -266,7 +267,7 @@ export async function generateOrderPdf(opts: {
   const docLines = doc.splitTextToSize(docLine, textMaxW)
   doc.text(docLines, textX, ty)
   ty += docLines.length * 3.6 + 1
-  const telLine = `Tel: ${opts.store.phone_main}  WhatsApp: ${opts.store.whatsapp_1}${opts.store.whatsapp_2 ? ' / ' + opts.store.whatsapp_2 : ''}`
+  const telLine = `Tel: ${formatBrazilPhoneDisplay(opts.store.phone_main)}  WhatsApp: ${formatBrazilPhoneDisplay(opts.store.whatsapp_1)}${opts.store.whatsapp_2 ? ' / ' + formatBrazilPhoneDisplay(opts.store.whatsapp_2) : ''}`
   const telLines = doc.splitTextToSize(telLine, textMaxW)
   doc.text(telLines, textX, ty)
   ty += telLines.length * 3.6 + 1
@@ -311,11 +312,11 @@ export async function generateOrderPdf(opts: {
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   let yL = y + 4
-  doc.text(`Telefone: ${String(c.phone ?? '')}`, margin, yL)
+  doc.text(`Telefone: ${formatBrazilPhoneDisplay(String(c.phone ?? ''))}`, margin, yL)
   yL += 4
   const sec = String(c.phone_secondary ?? '').trim()
   if (sec) {
-    doc.text(`Telefone 2: ${sec}`, margin, yL)
+    doc.text(`Telefone 2: ${formatBrazilPhoneDisplay(sec)}`, margin, yL)
     yL += 4
   }
   const addrCliente = [
