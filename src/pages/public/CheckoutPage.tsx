@@ -26,11 +26,18 @@ import { checkPhoneHasWhatsApp } from '@/services/whatsappCheckService'
 import { getCheckoutErrorMessage } from '@/lib/checkoutError'
 import { notifyCheckoutOrderWhatsApp } from '@/services/whatsappSendService'
 import { CreditInstallmentPicker } from '@/components/checkout/CreditInstallmentPicker'
-import { creditCardInstallmentQuote, formatPercentBr } from '@/lib/creditCardInstallments'
+import {
+  creditCardInstallmentQuote,
+  creditInstallmentOptions,
+  DEFAULT_CREDIT_INSTALLMENT_RATES,
+  formatPercentBr,
+  type CreditInstallmentRate,
+} from '@/lib/creditCardInstallments'
 import { fetchCartPriceChanges, type CartPriceChange } from '@/services/cartPriceValidation'
 import { CartPriceChangeDialog } from '@/components/cart/CartPriceChangeDialog'
 import { calcularTaxaEntrega } from '@/lib/deliveryFee'
 import { fetchStoreDeliveryRates, type StoreDeliveryRates } from '@/services/deliveryFeeService'
+import { fetchStoreCreditInstallmentFees } from '@/services/creditInstallmentFeeService'
 
 export function CheckoutPage() {
   const { store, slug } = useOutletContext<CatalogOutletCtx>()
@@ -40,6 +47,7 @@ export function CheckoutPage() {
   const priceAcceptedRef = useRef(false)
   const [priceChanges, setPriceChanges] = useState<CartPriceChange[] | null>(null)
   const [deliveryRates, setDeliveryRates] = useState<StoreDeliveryRates | null>(null)
+  const [creditRates, setCreditRates] = useState<CreditInstallmentRate[]>(DEFAULT_CREDIT_INSTALLMENT_RATES)
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -69,10 +77,20 @@ export function CheckoutPage() {
     let cancelled = false
     void (async () => {
       try {
-        const rates = await fetchStoreDeliveryRates(store.id)
-        if (!cancelled) setDeliveryRates(rates)
+        const [delivery, credit] = await Promise.all([
+          fetchStoreDeliveryRates(store.id),
+          fetchStoreCreditInstallmentFees(store.id),
+        ])
+        if (cancelled) return
+        setDeliveryRates(delivery)
+        setCreditRates(credit.rates)
+        const opts = creditInstallmentOptions(credit.rates)
+        if (opts.length) setCreditInstallments((prev) => (opts.includes(prev) ? prev : opts[0]))
       } catch {
-        if (!cancelled) setDeliveryRates({ defaultFee: 100, cities: [] })
+        if (!cancelled) {
+          setDeliveryRates({ defaultFee: 100, cities: [] })
+          setCreditRates(DEFAULT_CREDIT_INSTALLMENT_RATES)
+        }
       }
     })()
     return () => {
@@ -94,8 +112,8 @@ export function CheckoutPage() {
 
   const creditQuote = useMemo(() => {
     if (payKind !== 'cartao_credito') return null
-    return creditCardInstallmentQuote(baseTotal, creditInstallments)
-  }, [payKind, baseTotal, creditInstallments])
+    return creditCardInstallmentQuote(baseTotal, creditInstallments, creditRates)
+  }, [payKind, baseTotal, creditInstallments, creditRates])
 
   const checkoutTotal = creditQuote?.total ?? baseTotal
 
@@ -199,7 +217,7 @@ export function CheckoutPage() {
     const secTrim = phoneSecondary.trim()
     const paymentDetails: Record<string, number> = {}
     if (payKind === 'cartao_credito') {
-      const q = creditCardInstallmentQuote(baseTotal, creditInstallments)
+      const q = creditCardInstallmentQuote(baseTotal, creditInstallments, creditRates)
       paymentDetails.installments = q.installments
       paymentDetails.fee_percent = q.percent
       paymentDetails.fee_amount = q.feeAmount
@@ -287,6 +305,7 @@ export function CheckoutPage() {
     subtotal,
     baseTotal,
     deliveryQuote,
+    creditRates,
     payKind,
     creditInstallments,
     installments,
@@ -484,16 +503,9 @@ export function CheckoutPage() {
             <CreditInstallmentPicker
               subtotal={baseTotal}
               selected={creditInstallments}
+              rates={creditRates}
               onSelect={setCreditInstallments}
             />
-          ) : null}
-          {payKind === 'parcelado' && payCfg.card_fee_credit_percent > 0 ? (
-            <p className="text-xs text-ink-500">
-              Taxa estimada da maquinha (parcelado): {payCfg.card_fee_credit_percent}% — valor informativo para o fechamento do pedido.
-            </p>
-          ) : null}
-          {payKind === 'cartao_debito' && payCfg.card_fee_debit_percent > 0 ? (
-            <p className="text-xs text-ink-500">Taxa estimada da maquinha (débito): {payCfg.card_fee_debit_percent}%.</p>
           ) : null}
           {payKind === 'parcelado' || payKind === 'entrada_parcelado' ? (
             <div>

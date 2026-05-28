@@ -115,8 +115,16 @@ export type SofaSpec = {
 
 export type CheckoutPaymentConfig = {
   accepted_methods: PaymentKind[]
-  card_fee_credit_percent: number
-  card_fee_debit_percent: number
+}
+
+export type StoreCreditInstallmentFeeRow = {
+  id: string
+  created_at: string
+  updated_at: string
+  store_id: string
+  installments: number
+  fee_percent: number
+  sort_order: number
 }
 
 export type CatalogStoreRow = {
@@ -190,6 +198,11 @@ export type Database = {
       }
       store_delivery_settings: { Row: StoreDeliverySettingsRow; Insert: never; Update: Partial<StoreDeliverySettingsRow> }
       store_delivery_cities: { Row: StoreDeliveryCityRow; Insert: never; Update: Partial<StoreDeliveryCityRow> }
+      store_credit_installment_fees: {
+        Row: StoreCreditInstallmentFeeRow
+        Insert: never
+        Update: Partial<StoreCreditInstallmentFeeRow>
+      }
       customers: {
         Row: {
           id: string
@@ -390,7 +403,9 @@ export type Database = {
       register_store: { Args: Record<string, string | null>; Returns: string }
       checkout_catalog_order: { Args: Record<string, Json | string | null>; Returns: Json }
       seed_store_delivery_cities: { Args: { p_store_id: string }; Returns: void }
+      seed_store_credit_installment_fees: { Args: { p_store_id: string }; Returns: void }
       lookup_delivery_fee: { Args: { p_store_id: string; p_city: string }; Returns: Json }
+      credit_installment_fee_percent: { Args: { p_store_id: string; p_installments: number }; Returns: number }
       resolve_catalog_customer: {
         Args: { p_store_id: string; p_customer_id?: string | null; p_phone?: string | null }
         Returns: Json

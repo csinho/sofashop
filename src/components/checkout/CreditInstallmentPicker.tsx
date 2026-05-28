@@ -1,27 +1,30 @@
 import { formatCurrency } from '@/lib/format'
 import {
-  CREDIT_INSTALLMENT_OPTIONS,
   creditCardInstallmentQuote,
   creditInstallmentFeePercent,
+  creditInstallmentOptions,
   formatPercentBr,
+  type CreditInstallmentRate,
 } from '@/lib/creditCardInstallments'
 
 type Props = {
   subtotal: number
   selected: number
+  rates: ReadonlyArray<CreditInstallmentRate>
   onSelect: (installments: number) => void
 }
 
-export function CreditInstallmentPicker({ subtotal, selected, onSelect }: Props) {
-  const quote = creditCardInstallmentQuote(subtotal, selected)
+export function CreditInstallmentPicker({ subtotal, selected, rates, onSelect }: Props) {
+  const options = creditInstallmentOptions(rates)
+  const quote = creditCardInstallmentQuote(subtotal, selected, rates)
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-medium text-ink-600">Parcelas no cartão</p>
+      <p className="text-xs font-medium text-ink-600">Parcelas no cartão de crédito</p>
       <div className="flex flex-wrap gap-2">
-        {CREDIT_INSTALLMENT_OPTIONS.map((n) => {
+        {options.map((n) => {
           const active = n === quote.installments
-          const pct = formatPercentBr(creditInstallmentFeePercent(n))
+          const pct = formatPercentBr(creditInstallmentFeePercent(n, rates))
           return (
             <button
               key={n}
@@ -58,7 +61,7 @@ export function CreditInstallmentPicker({ subtotal, selected, onSelect }: Props)
           </div>
         </dl>
         <p className="mt-2 text-xs text-ink-500">
-          Valor base (produtos + frete): {formatCurrency(subtotal)}. Valores estimados conforme taxas da maquinha.
+          Valor base (produtos + frete): {formatCurrency(subtotal)}. Taxas conforme configuração da loja.
         </p>
       </div>
     </div>
