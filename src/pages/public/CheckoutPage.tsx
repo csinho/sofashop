@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -25,12 +25,18 @@ import { notifyOk } from '@/lib/notify'
 import { checkPhoneHasWhatsApp } from '@/services/whatsappCheckService'
 import { getCheckoutErrorMessage } from '@/lib/checkoutError'
 import { notifyCheckoutOrderWhatsApp } from '@/services/whatsappSendService'
+import { CreditInstallmentPicker } from '@/components/checkout/CreditInstallmentPicker'
+import { creditCardInstallmentQuote, formatPercentBr } from '@/lib/creditCardInstallments'
+import { fetchCartPriceChanges, type CartPriceChange } from '@/services/cartPriceValidation'
+import { CartPriceChangeDialog } from '@/components/cart/CartPriceChangeDialog'
 
 export function CheckoutPage() {
   const { store, slug } = useOutletContext<CatalogOutletCtx>()
   const nav = useNavigate()
-  const { lines, subtotal, clear } = useCart()
+  const { lines, subtotal, clear, updateLinePrices } = useCart()
   const storeLines = lines.filter((l) => l.storeId === store.id)
+  const priceAcceptedRef = useRef(false)
+  const [priceChanges, setPriceChanges] = useState<CartPriceChange[] | null>(null)
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -45,6 +51,7 @@ export function CheckoutPage() {
   const [notes, setNotes] = useState('')
 
   const [payKind, setPayKind] = useState<PaymentKind>('pix')
+  const [creditInstallments, setCreditInstallments] = useState(1)
   const [installments, setInstallments] = useState('6')
   const [down, setDown] = useState('')
 
@@ -54,6 +61,13 @@ export function CheckoutPage() {
   const [phoneWaInvalid, setPhoneWaInvalid] = useState(false)
 
   const payCfg = useMemo(() => resolveCheckoutConfig(store), [store.id, store.checkout_payment_config])
+
+  const creditQuote = useMemo(() => {
+    if (payKind !== 'cartao_credito') return null
+    return creditCardInstallmentQuote(subtotal, creditInstallments)
+  }, [payKind, subtotal, creditInstallments])
+
+  const checkoutTotal = creditQuote?.total ?? subtotal
 
   const applyResolved = useCallback((r: ResolvedCatalogCustomer) => {
     setFullName(r.full_name)
@@ -151,32 +165,15 @@ export function CheckoutPage() {
     }
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setErr(null)
-    if (storeLines.length === 0) {
-      setErr('Seu carrinho está vazio.')
-      return
-    }
-    const pv = validateBrazilPhone(phone)
-    if (!pv.ok) {
-      setErr(pv.message ?? 'Telefone inválido')
-      return
-    }
-    if (phoneWaInvalid) {
-      setErr('Este número não possui WhatsApp ativo. Informe um número válido.')
-      return
-    }
+  const executeCheckout = useCallback(async () => {
     const secTrim = phoneSecondary.trim()
-    if (secTrim) {
-      const pv2 = validateBrazilPhone(phoneSecondary)
-      if (!pv2.ok) {
-        setErr(pv2.message ?? 'Telefone alternativo inválido')
-        return
-      }
-    }
-
     const paymentDetails: Record<string, number> = {}
+    if (payKind === 'cartao_credito') {
+      const q = creditCardInstallmentQuote(subtotal, creditInstallments)
+      paymentDetails.installments = q.installments
+      paymentDetails.fee_percent = q.percent
+      paymentDetails.fee_amount = q.feeAmount
+    }
     if (payKind === 'parcelado') {
       paymentDetails.installments = Math.max(2, Number(installments.replace(/\D/g, '')) || 2)
     }
@@ -192,6 +189,12 @@ export function CheckoutPage() {
 
     setLoading(true)
     try {
+      const changes = await fetchCartPriceChanges(store.id, storeLines)
+      if (changes.length && !priceAcceptedRef.current) {
+        setPriceChanges(changes)
+        return
+      }
+
       const result = await submitCheckout({
         storeId: store.id,
         customer: {
@@ -239,7 +242,73 @@ export function CheckoutPage() {
       setErr(getCheckoutErrorMessage(e))
     } finally {
       setLoading(false)
+      priceAcceptedRef.current = false
     }
+  }, [
+    store.id,
+    storeLines,
+    subtotal,
+    payKind,
+    creditInstallments,
+    installments,
+    down,
+    fullName,
+    phone,
+    phoneSecondary,
+    cep,
+    street,
+    number,
+    complement,
+    district,
+    city,
+    stateUf,
+    notes,
+    slug,
+    clear,
+    nav,
+  ])
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    setErr(null)
+    priceAcceptedRef.current = false
+    if (storeLines.length === 0) {
+      setErr('Seu carrinho está vazio.')
+      return
+    }
+    const pv = validateBrazilPhone(phone)
+    if (!pv.ok) {
+      setErr(pv.message ?? 'Telefone inválido')
+      return
+    }
+    if (phoneWaInvalid) {
+      setErr('Este número não possui WhatsApp ativo. Informe um número válido.')
+      return
+    }
+    const secTrim = phoneSecondary.trim()
+    if (secTrim) {
+      const pv2 = validateBrazilPhone(phoneSecondary)
+      if (!pv2.ok) {
+        setErr(pv2.message ?? 'Telefone alternativo inválido')
+        return
+      }
+    }
+
+    await executeCheckout()
+  }
+
+  function onAcceptPriceChanges() {
+    if (!priceChanges?.length) return
+    updateLinePrices(priceChanges.map((c) => ({ key: c.key, unitPrice: c.newPrice })))
+    priceAcceptedRef.current = true
+    setPriceChanges(null)
+    void executeCheckout()
+  }
+
+  function onRejectPriceChanges() {
+    setPriceChanges(null)
+    priceAcceptedRef.current = false
+    nav(`/loja/${slug}/carrinho`)
   }
 
   if (storeLines.length === 0) {
@@ -257,6 +326,14 @@ export function CheckoutPage() {
     <div className="mx-auto w-full max-w-3xl px-4 py-8 lg:max-w-5xl">
       <h1 className="font-display text-3xl font-semibold text-[var(--cat-primary)]">Checkout</h1>
       <p className="mt-1 text-sm text-ink-600">Preencha seus dados e a forma de pagamento. O pedido será salvo e você será direcionado ao WhatsApp.</p>
+
+      <CartPriceChangeDialog
+        open={priceChanges != null && priceChanges.length > 0}
+        changes={priceChanges ?? []}
+        busy={loading}
+        onAccept={onAcceptPriceChanges}
+        onReject={onRejectPriceChanges}
+      />
 
       <form className="mt-8 space-y-6" onSubmit={onSubmit}>
         <Card className="space-y-4">
@@ -342,16 +419,30 @@ export function CheckoutPage() {
 
         <Card className="space-y-4">
           <h2 className="font-display text-lg font-semibold">Pagamento</h2>
-          <Select value={payKind} onChange={(e) => setPayKind(e.target.value as PaymentKind)}>
+          <Select
+            value={payKind}
+            onChange={(e) => {
+              const next = e.target.value as PaymentKind
+              setPayKind(next)
+              if (next === 'cartao_credito') setCreditInstallments(1)
+            }}
+          >
             {payCfg.accepted_methods.map((k) => (
               <option key={k} value={k}>
                 {PAYMENT_LABEL[k]}
               </option>
             ))}
           </Select>
-          {(payKind === 'cartao_credito' || payKind === 'parcelado') && payCfg.card_fee_credit_percent > 0 ? (
+          {payKind === 'cartao_credito' ? (
+            <CreditInstallmentPicker
+              subtotal={subtotal}
+              selected={creditInstallments}
+              onSelect={setCreditInstallments}
+            />
+          ) : null}
+          {payKind === 'parcelado' && payCfg.card_fee_credit_percent > 0 ? (
             <p className="text-xs text-ink-500">
-              Taxa estimada da maquinha (crédito / parcelado): {payCfg.card_fee_credit_percent}% — valor informativo para o fechamento do pedido.
+              Taxa estimada da maquinha (parcelado): {payCfg.card_fee_credit_percent}% — valor informativo para o fechamento do pedido.
             </p>
           ) : null}
           {payKind === 'cartao_debito' && payCfg.card_fee_debit_percent > 0 ? (
@@ -383,16 +474,34 @@ export function CheckoutPage() {
 
         <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-ink-600">Total</p>
-            <p className="text-2xl font-bold" style={{ color: '#000000' }}>
-              {formatCurrency(subtotal)}
-            </p>
+            {creditQuote ? (
+              <div className="space-y-1">
+                <p className="text-sm text-ink-600">
+                  Subtotal <span className="font-medium text-ink-800">{formatCurrency(subtotal)}</span>
+                  {' · '}
+                  Taxa ({formatPercentBr(creditQuote.percent)}){' '}
+                  <span className="font-medium text-ink-800">{formatCurrency(creditQuote.feeAmount)}</span>
+                </p>
+                <p className="text-sm text-ink-600">Total a pagar</p>
+                <p className="text-2xl font-bold" style={{ color: '#000000' }}>
+                  {formatCurrency(checkoutTotal)}
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-ink-600">Total</p>
+                <p className="text-2xl font-bold" style={{ color: '#000000' }}>
+                  {formatCurrency(checkoutTotal)}
+                </p>
+              </>
+            )}
           </div>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
           <Button
             type="submit"
             variant="catalog"
             loading={loading}
+            tooltip="Registrar o pedido na loja. Se algum preço mudou, você precisará confirmar antes."
             className="bg-[var(--cat-primary)] px-8 py-3 hover:opacity-95 focus-visible:outline-[var(--cat-primary)]"
           >
             Enviar pedido

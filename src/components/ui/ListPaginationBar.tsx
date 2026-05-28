@@ -39,6 +39,7 @@ export function ListPaginationBar({
           variant="secondary"
           className="!px-2.5 !py-1.5"
           disabled={page <= 1}
+          tooltip="Ir para a página anterior da lista."
           onClick={onPrev}
           aria-label="Página anterior"
         >
@@ -50,6 +51,7 @@ export function ListPaginationBar({
           variant="secondary"
           className="!px-2.5 !py-1.5"
           disabled={page >= pageCount}
+          tooltip="Ir para a próxima página da lista."
           onClick={onNext}
           aria-label="Próxima página"
         >

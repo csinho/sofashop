@@ -26,13 +26,19 @@ export function formatOrderPaymentSummary(
     case 'cartao_debito':
       lines.push(PAYMENT_LABEL.cartao_debito)
       break
-    case 'cartao_credito':
-      if (Number.isFinite(installments) && installments > 1) {
-        lines.push(`${PAYMENT_LABEL.cartao_credito} — ${installments} parcelas.`)
-      } else {
-        lines.push(`${PAYMENT_LABEL.cartao_credito} — à vista.`)
+    case 'cartao_credito': {
+      const feePct = typeof d.fee_percent === 'number' ? d.fee_percent : Number(d.fee_percent)
+      const feeAmt = typeof d.fee_amount === 'number' ? d.fee_amount : Number(d.fee_amount)
+      const instLabel =
+        Number.isFinite(installments) && installments >= 1
+          ? `${installments}x`
+          : 'à vista'
+      lines.push(`${PAYMENT_LABEL.cartao_credito} — ${instLabel}`)
+      if (Number.isFinite(feePct) && feePct > 0 && Number.isFinite(feeAmt) && feeAmt > 0) {
+        lines.push(`Taxa ${feePct.toLocaleString('pt-BR')}% (${formatCurrency(feeAmt)})`)
       }
       break
+    }
     case 'parcelado':
       if (Number.isFinite(installments) && installments >= 2) {
         lines.push(`${PAYMENT_LABEL.parcelado} — ${installments} parcelas.`)

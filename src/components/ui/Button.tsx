@@ -21,8 +21,10 @@ export const Button = forwardRef<
     loading?: boolean
     /** Exibe toast de sucesso após o handler concluir sem erro (útil em ações rápidas). */
     doneToast?: string
+    /** Texto exibido ao passar o mouse (dica da ação). */
+    tooltip?: string
   }
->(function Button({ className, variant = 'primary', loading, disabled, children, onClick, doneToast, type, ...props }, ref) {
+>(function Button({ className, variant = 'primary', loading, disabled, children, onClick, doneToast, tooltip, type, title, ...props }, ref) {
   const btnType = type ?? 'button'
 
   function handleClick(e: MouseEvent<HTMLButtonElement>) {
@@ -51,6 +53,7 @@ export const Button = forwardRef<
       )}
       disabled={disabled || loading}
       onClick={doneToast ? handleClick : onClick}
+      title={tooltip ?? title}
       {...props}
     >
       {loading ? (

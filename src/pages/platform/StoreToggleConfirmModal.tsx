@@ -66,6 +66,7 @@ export function StoreToggleConfirmModal({
           <button
             type="button"
             className="shrink-0 rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+            title="Fechar sem alterar o status da loja."
             onClick={onClose}
             disabled={busy}
             aria-label="Fechar"
@@ -74,13 +75,21 @@ export function StoreToggleConfirmModal({
           </button>
         </div>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose} disabled={busy}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            tooltip="Fechar sem alterar o status da loja."
+            onClick={onClose}
+            disabled={busy}
+          >
             Cancelar
           </Button>
           <Button
             type="button"
             variant={willActivate ? 'primary' : 'danger'}
             className="w-full sm:w-auto"
+            tooltip={willActivate ? 'Ativar a loja no catálogo público.' : 'Desativar a loja; clientes não acessam o catálogo.'}
             loading={busy}
             onClick={onConfirm}
           >

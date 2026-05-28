@@ -188,7 +188,12 @@ export function CatalogDataPage() {
             <Input className="mt-1" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="ex: Linho cinza" />
           </div>
           <ColorField label="Hex" value={cHex} onChange={setCHex} />
-          <Button type="button" variant="secondary" onClick={() => void addColor()}>
+          <Button
+            type="button"
+            variant="secondary"
+            tooltip="Cadastrar uma cor para usar nas variações e no filtro do catálogo."
+            onClick={() => void addColor()}
+          >
             Adicionar cor
           </Button>
         </div>
@@ -200,7 +205,13 @@ export function CatalogDataPage() {
                 <span className="font-medium text-ink-900">{c.name}</span>
                 <code className="text-xs text-ink-500">{c.hex}</code>
               </span>
-              <Button type="button" variant="ghost" className="text-red-600" onClick={() => void removeColor(c.id)}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-red-600"
+                tooltip="Excluir esta cor do cadastro da loja."
+                onClick={() => void removeColor(c.id)}
+              >
                 Remover
               </Button>
             </li>
@@ -213,7 +224,13 @@ export function CatalogDataPage() {
         <h3 className="font-display text-lg font-semibold text-ink-900">Categorias</h3>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input className="w-full sm:max-w-md" placeholder="Nome da nova categoria" value={catName} onChange={(e) => setCatName(e.target.value)} />
-          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => void addCategory()}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            tooltip="Criar categoria para organizar produtos no catálogo."
+            onClick={() => void addCategory()}
+          >
             Nova categoria
           </Button>
         </div>
@@ -223,7 +240,17 @@ export function CatalogDataPage() {
               <CategoryNameEditor cat={c} onSave={(name) => void updateCategoryName(c, name)} />
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="truncate text-xs text-ink-400">{c.slug}</span>
-                <Button type="button" variant="ghost" className="text-xs" onClick={() => void toggleCategory(c)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-xs"
+                  tooltip={
+                    c.is_active
+                      ? 'Ocultar esta categoria: produtos não aparecem no filtro do catálogo.'
+                      : 'Ativar esta categoria no catálogo público.'
+                  }
+                  onClick={() => void toggleCategory(c)}
+                >
                   {c.is_active ? 'Ocultar' : 'Ativar'}
                 </Button>
               </div>
@@ -241,7 +268,13 @@ export function CatalogDataPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input className="w-full sm:max-w-md" placeholder="Nome do tipo" value={mtName} onChange={(e) => setMtName(e.target.value)} />
-          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => void addModelType()}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            tooltip="Cadastrar um tipo/modelo para filtro e cadastro de produtos."
+            onClick={() => void addModelType()}
+          >
             Novo tipo
           </Button>
         </div>
@@ -250,7 +283,13 @@ export function CatalogDataPage() {
             <li key={m.id} className="rounded-xl border border-ink-100 p-3">
               <ModelNameEditor row={m} onSave={(name) => void updateModelName(m, name)} />
               <div className="mt-2 flex justify-end">
-                <Button type="button" variant="ghost" className="text-red-600" onClick={() => void removeModelType(m.id)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-red-600"
+                  tooltip="Excluir este tipo de produto."
+                  onClick={() => void removeModelType(m.id)}
+                >
                   Remover
                 </Button>
               </div>
@@ -270,7 +309,13 @@ function CategoryNameEditor({ cat, onSave }: { cat: CatRow; onSave: (name: strin
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <Input className="w-full sm:min-w-[200px] sm:flex-1" value={v} onChange={(e) => setV(e.target.value)} />
-      <Button type="button" variant="secondary" className="w-full text-xs sm:w-auto" onClick={() => onSave(v)}>
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-full text-xs sm:w-auto"
+        tooltip="Salvar o novo nome desta categoria."
+        onClick={() => onSave(v)}
+      >
         Salvar
       </Button>
     </div>
@@ -285,7 +330,13 @@ function ModelNameEditor({ row, onSave }: { row: ModelTypeRow; onSave: (name: st
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <Input className="w-full sm:min-w-[200px] sm:flex-1" value={v} onChange={(e) => setV(e.target.value)} />
-      <Button type="button" variant="secondary" className="w-full text-xs sm:w-auto" onClick={() => onSave(v)}>
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-full text-xs sm:w-auto"
+        tooltip="Salvar o novo nome deste tipo de produto."
+        onClick={() => onSave(v)}
+      >
         Salvar
       </Button>
     </div>

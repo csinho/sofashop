@@ -158,6 +158,7 @@ export function OrdersPage() {
               'rounded-lg px-3 py-1.5',
               view === 'list' ? 'bg-brand-600 text-white shadow-sm hover:bg-brand-700' : 'text-ink-600 hover:bg-ink-50',
             )}
+            tooltip="Ver pedidos em lista com filtros."
             onClick={() => setView('list')}
             doneToast="Visualização em lista ativa."
           >
@@ -172,6 +173,7 @@ export function OrdersPage() {
                 'rounded-lg px-3 py-1.5',
                 view === 'kanban' ? 'bg-brand-600 text-white shadow-sm hover:bg-brand-700' : 'text-ink-600 hover:bg-ink-50',
               )}
+              tooltip="Ver pedidos em colunas por status (arrastar entre etapas)."
               onClick={() => setView('kanban')}
               doneToast="Visualização em quadro ativada."
             >

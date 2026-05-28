@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/format'
 import { parseMoneyBRL } from '@/lib/moneyInput'
 import { effectivePrice, fetchCatalogCategories, fetchCatalogModelTypes, fetchCatalogProducts } from '@/services/catalogPublicService'
 import type { CatalogOutletCtx } from '@/pages/public/catalogTypes'
+import { useStoreCatalogRealtime } from '@/hooks/useStoreCatalogRealtime'
 
 export function CatalogPageModern() {
   const { store, slug, setBannerImageUrl } = useOutletContext<CatalogOutletCtx>()
@@ -73,10 +74,9 @@ export function CatalogPageModern() {
     }
   }, [store.id])
 
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      setLoading(true)
+  const reloadProducts = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setLoading(true)
       try {
         const prods = await fetchCatalogProducts(store.id, {
           categoryId: categoryId || undefined,
@@ -92,16 +92,21 @@ export function CatalogPageModern() {
           minHeightCm: toPositiveOrUndefined(minH),
           maxHeightCm: toPositiveOrUndefined(maxH),
         })
-        if (!alive) return
         setProducts(prods)
       } finally {
-        if (alive) setLoading(false)
+        if (!opts?.silent) setLoading(false)
       }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [store.id, categoryId, search, model, colorHex, minP, maxP, minL, maxL, minW, maxW, minH, maxH])
+    },
+    [store.id, categoryId, search, model, colorHex, minP, maxP, minL, maxL, minW, maxW, minH, maxH],
+  )
+
+  useEffect(() => {
+    void reloadProducts()
+  }, [reloadProducts])
+
+  useStoreCatalogRealtime(store.id, () => {
+    void reloadProducts({ silent: true })
+  })
 
   const visibleProducts = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -169,6 +174,7 @@ export function CatalogPageModern() {
         <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
           <button
             type="button"
+            title="Mostrar produtos de todas as categorias."
             onClick={() => setCategoryId('')}
             className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
               !categoryId ? 'bg-[var(--cat-primary)] text-white' : 'bg-ink-100 text-ink-700'
@@ -180,6 +186,7 @@ export function CatalogPageModern() {
             <button
               key={c.id}
               type="button"
+              title={`Filtrar produtos da categoria ${c.name}.`}
               onClick={() => setCategoryId(c.id)}
               className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
                 categoryId === c.id ? 'bg-[var(--cat-primary)] text-white' : 'bg-ink-100 text-ink-700'
@@ -249,6 +256,7 @@ export function CatalogPageModern() {
         <button
           type="button"
           className="fixed bottom-5 right-4 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--cat-primary)] text-white shadow-xl ring-1 ring-black/10 transition hover:opacity-95 md:bottom-7 md:right-7"
+          title="Abrir filtros de preço, cor, dimensões e modelo."
           aria-label="Abrir filtros"
           onClick={openFilters}
         >
@@ -268,6 +276,7 @@ export function CatalogPageModern() {
               <button
                 type="button"
                 className="rounded-full bg-ink-100 p-2 text-ink-700 hover:bg-ink-200"
+                title="Fechar o painel de filtros."
                 onClick={() => setFiltersOpen(false)}
                 aria-label="Fechar filtros"
               >
@@ -427,6 +436,7 @@ export function CatalogPageModern() {
               <button
                 type="button"
                 className="rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-semibold text-ink-700"
+                title="Limpar todos os filtros selecionados."
                 onClick={() => {
                   setDraftModel('')
                   setDraftColorHex('')
@@ -455,6 +465,7 @@ export function CatalogPageModern() {
               <button
                 type="button"
                 className="rounded-xl bg-[var(--cat-accent)] px-4 py-2.5 text-sm font-semibold text-white"
+                title="Fechar filtros e atualizar a lista de produtos."
                 onClick={() => {
                   setFiltersOpen(false)
                 }}

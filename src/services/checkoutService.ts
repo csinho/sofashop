@@ -90,6 +90,7 @@ export async function submitCheckout(payload: CheckoutPayload) {
       variant: l.variantLabel ?? null,
       image: l.imageUrl ?? null,
       warranty: l.warranty ?? null,
+      delivery_days: l.deliveryDays ?? null,
     } as Json,
   }))
 

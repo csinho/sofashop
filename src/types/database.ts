@@ -53,6 +53,10 @@ export type PaymentDetails = {
   installments?: number
   down_payment?: number
   card_last4?: string
+  /** Taxa da maquinha (cartão crédito), em percentual. */
+  fee_percent?: number
+  /** Valor da taxa em reais. */
+  fee_amount?: number
 }
 
 export type SofaSpec = {
@@ -249,6 +253,7 @@ export type Database = {
           stock: number | null
           sort_order: number
           is_active: boolean
+          is_default: boolean
         }
       }
       variant_images: {

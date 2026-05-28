@@ -1,4 +1,5 @@
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -7,12 +8,36 @@ import { formatCurrency } from '@/lib/format'
 import { notifyOk } from '@/lib/notify'
 import { useCart } from '@/contexts/CartContext'
 import type { CatalogOutletCtx } from '@/pages/public/catalogTypes'
+import { fetchCartPriceChanges, type CartPriceChange } from '@/services/cartPriceValidation'
+import { useStoreCatalogRealtime } from '@/hooks/useStoreCatalogRealtime'
 
 export function CartPage() {
   const nav = useNavigate()
-  const { slug } = useOutletContext<CatalogOutletCtx>()
-  const { lines, updateQty, removeLine, subtotal } = useCart()
-  const storeLines = lines.filter((l) => l.storeId)
+  const { store, slug } = useOutletContext<CatalogOutletCtx>()
+  const { lines, updateQty, removeLine, updateLinePrices, subtotal } = useCart()
+  const storeLines = lines.filter((l) => l.storeId === store.id)
+  const [priceChanges, setPriceChanges] = useState<CartPriceChange[]>([])
+
+  const checkPrices = useCallback(async () => {
+    if (!storeLines.length) {
+      setPriceChanges([])
+      return
+    }
+    try {
+      const changes = await fetchCartPriceChanges(store.id, storeLines)
+      setPriceChanges(changes)
+    } catch {
+      /* rede: não bloqueia carrinho */
+    }
+  }, [store.id, storeLines])
+
+  useEffect(() => {
+    void checkPrices()
+  }, [checkPrices])
+
+  useStoreCatalogRealtime(store.id, () => {
+    void checkPrices()
+  })
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -21,13 +46,52 @@ export function CartPage() {
         <Card className="mt-8 text-center text-sm text-ink-600">
           Seu carrinho está vazio.
           <div className="mt-4">
-            <Button type="button" variant="secondary" onClick={() => nav(`/loja/${slug}`)} doneToast="Voltando ao catálogo.">
+            <Button
+              type="button"
+              variant="secondary"
+              tooltip="Voltar ao catálogo para continuar comprando."
+              onClick={() => nav(`/loja/${slug}`)}
+              doneToast="Voltando ao catálogo."
+            >
               Ver produtos
             </Button>
           </div>
         </Card>
       ) : (
         <div className="mt-6 space-y-4">
+          {priceChanges.length > 0 ? (
+            <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-semibold">Preços atualizados na loja</p>
+              <p className="mt-1 text-xs">
+                Alguns itens mudaram de valor desde que entraram no carrinho. Atualize para ver o total correto antes do
+                checkout.
+              </p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {priceChanges.map((c) => (
+                  <li key={c.key}>
+                    {c.name}: {formatCurrency(c.oldPrice)} → <strong>{formatCurrency(c.newPrice)}</strong>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="text-xs"
+                  tooltip="Aplicar os preços atuais da loja aos itens do carrinho."
+                  onClick={() => {
+                    updateLinePrices(priceChanges.map((c) => ({ key: c.key, unitPrice: c.newPrice })))
+                    setPriceChanges([])
+                  }}
+                >
+                  Atualizar preços no carrinho
+                </Button>
+                <Link to={`/loja/${slug}`} className="text-xs font-medium text-amber-900 underline">
+                  Voltar ao catálogo
+                </Link>
+              </div>
+            </Card>
+          ) : null}
           {storeLines.map((l) => (
             <Card key={l.key} className="flex items-start gap-3 p-3 sm:gap-4 sm:p-5">
               {l.imageUrl ? (
@@ -53,6 +117,7 @@ export function CartPage() {
                 <button
                   type="button"
                   className="hidden h-8 w-8 items-center justify-center rounded-full text-red-500 hover:bg-red-50 sm:inline-flex"
+                  title="Remover este item do carrinho."
                   onClick={() => {
                     removeLine(l.key)
                     notifyOk('Item removido do carrinho.')
@@ -73,6 +138,7 @@ export function CartPage() {
                   <button
                     type="button"
                     className="text-xs font-medium text-red-600 hover:underline"
+                    title="Remover este item do carrinho."
                     onClick={() => {
                       removeLine(l.key)
                       notifyOk('Item removido do carrinho.')
@@ -87,6 +153,7 @@ export function CartPage() {
                     <button
                       type="button"
                       className="inline-flex h-8 w-8 items-center justify-center text-red-500"
+                      title="Remover este item do carrinho."
                       onClick={() => {
                         removeLine(l.key)
                         notifyOk('Item removido do carrinho.')
@@ -99,6 +166,7 @@ export function CartPage() {
                     <button
                       type="button"
                       className="inline-flex h-8 w-8 items-center justify-center text-ink-700"
+                      title="Diminuir a quantidade deste item."
                       onClick={() => updateQty(l.key, l.qty - 1)}
                       aria-label="Diminuir quantidade"
                     >
@@ -109,6 +177,7 @@ export function CartPage() {
                   <button
                     type="button"
                     className="inline-flex h-8 w-8 items-center justify-center text-ink-700"
+                    title="Aumentar a quantidade deste item."
                     onClick={() => updateQty(l.key, l.qty + 1)}
                     disabled={l.maxQty != null && l.qty >= l.maxQty}
                     aria-label="Aumentar quantidade"
@@ -130,6 +199,7 @@ export function CartPage() {
               type="button"
               variant="catalog"
               className="w-full bg-[var(--cat-primary)] px-8 py-3 hover:opacity-95 focus-visible:outline-[var(--cat-primary)] sm:w-auto"
+              tooltip="Ir para o checkout com os itens do carrinho."
               onClick={() => nav(`/loja/${slug}/checkout`)}
               doneToast="Indo para o checkout."
             >

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -6,10 +6,12 @@ import { formatCurrency } from '@/lib/format'
 import { IntegerField } from '@/components/ui/IntegerField'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
 import { catalogAvailableQty } from '@/lib/productStock'
-import { effectivePrice, fetchCatalogProductBySlug } from '@/services/catalogPublicService'
+import { fetchCatalogProductBySlug } from '@/services/catalogPublicService'
+import { productListPrice, variantPriceOverrideValue, variantUnitPrice } from '@/lib/productPricing'
 import { notifyInfo, notifyOk } from '@/lib/notify'
 import { useCart } from '@/contexts/CartContext'
 import type { CatalogOutletCtx } from '@/pages/public/catalogTypes'
+import { useProductCatalogRealtime } from '@/hooks/useStoreCatalogRealtime'
 
 type Variant = {
   id: string
@@ -18,6 +20,7 @@ type Variant = {
   price_override: number | null
   stock: number | null
   is_active: boolean
+  is_default?: boolean
   colors: { name: string; hex: string } | null
   variant_images: { url: string; sort_order: number }[]
 }
@@ -34,25 +37,32 @@ export function ProductDetailPage() {
   const [variantId, setVariantId] = useState<string | null>(null)
   const [qty, setQty] = useState(1)
 
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
+  const reloadProduct = useCallback(
+    async (opts?: { silent?: boolean }) => {
       if (!productSlug) return
-      setLoading(true)
+      if (!opts?.silent) setLoading(true)
       try {
         const p = await fetchCatalogProductBySlug(store.id, productSlug)
-        if (!alive) return
         setProduct(p as Record<string, unknown> | null)
-        setVariantId(null)
-        setQty(1)
+        if (!opts?.silent) {
+          setVariantId(null)
+          setQty(1)
+        }
       } finally {
-        if (alive) setLoading(false)
+        if (!opts?.silent) setLoading(false)
       }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [store.id, productSlug])
+    },
+    [store.id, productSlug],
+  )
+
+  useEffect(() => {
+    void reloadProduct()
+  }, [reloadProduct])
+
+  const productId = product?.id != null ? String(product.id) : null
+  useProductCatalogRealtime(productId, () => {
+    void reloadProduct({ silent: true })
+  })
 
   const variants = (product?.product_variants as Variant[] | undefined) ?? []
   const activeVariants = variants.filter((v) => v.is_active)
@@ -76,21 +86,33 @@ export function ProductDetailPage() {
   )
 
   const variantRequired = hasVariants && variantId == null
-  const isOutOfStock = stockControlled && availableQty != null && availableQty < 1
+  const isOutOfStock =
+    stockControlled &&
+    !variantRequired &&
+    availableQty != null &&
+    availableQty < 1
   const addDisabled = variantRequired || isOutOfStock
 
-  const basePrice = useMemo(() => {
-    if (!product) return 0
-    return effectivePrice(product as never)
+  const productPricing = useMemo(() => {
+    if (!product) return { list: 0, base: 0, promo: null as number | null }
+    const base = Number(product.base_price ?? 0)
+    const promo = product.promo_price != null ? Number(product.promo_price) : null
+    return { list: productListPrice({ base_price: base, promo_price: promo }), base, promo }
   }, [product])
 
   const unitPrice = useMemo(() => {
-    if (selected?.price_override != null) return selected.price_override
-    return basePrice
-  }, [basePrice, selected])
-  const productBasePrice = Number(product?.base_price ?? 0)
-  const productPromoPrice = product?.promo_price != null ? Number(product.promo_price) : null
-  const hasProductPromo = selected == null && productPromoPrice != null && productPromoPrice > 0 && productPromoPrice < productBasePrice
+    if (!product) return 0
+    return variantUnitPrice(
+      { base_price: productPricing.base, promo_price: productPricing.promo },
+      selected,
+    )
+  }, [product, productPricing, selected])
+
+  const productBasePrice = productPricing.base
+  const productPromoPrice = productPricing.promo
+  const usesProductListPrice = selected == null || variantPriceOverrideValue(selected) == null
+  const hasProductPromo =
+    usesProductListPrice && productPromoPrice != null && productPromoPrice > 0 && productPromoPrice < productBasePrice
 
   const images = useMemo(() => {
     const fromVariant = selected?.variant_images?.slice().sort((a, b) => a.sort_order - b.sort_order) ?? []
@@ -154,6 +176,7 @@ export function ProductDetailPage() {
       return
     }
     const warrantyTerm = String((product.sofa_spec as { warranty?: string } | null | undefined)?.warranty ?? '').trim()
+    const deliveryDays = Number(product.delivery_days)
     addLine({
       storeId: store.id,
       productId: String(product.id),
@@ -166,6 +189,7 @@ export function ProductDetailPage() {
       colorName: selected?.colors?.name,
       variantLabel: selected?.name,
       warranty: warrantyTerm || undefined,
+      deliveryDays: Number.isFinite(deliveryDays) && deliveryDays > 0 ? deliveryDays : undefined,
       maxQty: availableQty ?? undefined,
     })
     notifyOk('Produto adicionado ao carrinho.')
@@ -235,6 +259,11 @@ export function ProductDetailPage() {
                       key={v.id}
                       type="button"
                       disabled={variantOut}
+                      title={
+                        variantOut
+                          ? 'Variação sem estoque.'
+                          : `Selecionar ${v.name} e atualizar o preço exibido.`
+                      }
                       onClick={() => {
                         setVariantId(v.id)
                         notifyInfo('Variação selecionada.')
@@ -287,6 +316,7 @@ export function ProductDetailPage() {
           <Button
             variant="catalog"
             disabled={addDisabled}
+            tooltip="Incluir este produto no carrinho com a variação e quantidade escolhidas."
             className="mt-4 hidden w-full max-w-sm bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)] disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
             onClick={handleAdd}
           >
@@ -312,6 +342,7 @@ export function ProductDetailPage() {
             <button
               type="button"
               className="px-3 py-2 text-lg font-semibold text-ink-700 disabled:opacity-40"
+              title="Diminuir a quantidade."
               disabled={isOutOfStock || qty <= 1}
               onClick={() => setQty((q) => Math.max(1, q - 1))}
               aria-label="Diminuir quantidade"
@@ -322,6 +353,7 @@ export function ProductDetailPage() {
             <button
               type="button"
               className="px-3 py-2 text-lg font-semibold text-ink-700 disabled:opacity-40"
+              title="Aumentar a quantidade."
               disabled={isOutOfStock || (qtyMax != null && qty >= qtyMax)}
               onClick={() => setQty((q) => (qtyMax != null ? Math.min(q + 1, qtyMax) : q + 1))}
               aria-label="Aumentar quantidade"
@@ -332,6 +364,7 @@ export function ProductDetailPage() {
           <Button
             variant="catalog"
             disabled={addDisabled}
+            tooltip="Incluir este produto no carrinho."
             className="flex-1 bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={handleAdd}
           >

@@ -21,6 +21,14 @@ export type WhatsAppOrderSummary = {
 
 function paymentHuman(kind: PaymentKind, details: Record<string, unknown>) {
   const base = PAYMENT_LABEL[kind]
+  if (kind === 'cartao_credito' && details.installments) {
+    const inst = details.installments
+    const fee = details.fee_amount as number | undefined
+    if (fee != null && fee > 0) {
+      return `${base} (${inst}x, taxa ${formatCurrency(fee)})`
+    }
+    return `${base} (${inst}x)`
+  }
   if (kind === 'parcelado' && details.installments) {
     return `${base} (${details.installments}x)`
   }

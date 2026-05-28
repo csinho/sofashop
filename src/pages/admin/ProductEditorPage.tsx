@@ -13,6 +13,7 @@ import { formatMoneyFromDecimal, parseMoneyBRL } from '@/lib/moneyInput'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { notifyErr, notifyInfo, notifyOk } from '@/lib/notify'
 import { allocatedStock, freeStock, parseStockInput } from '@/lib/productStock'
+import { productListPrice } from '@/lib/productPricing'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
 import type { SofaSpec } from '@/types/database'
 
@@ -35,7 +36,14 @@ type VariantRow = {
   stock: number | null
   color_id: string | null
   is_active: boolean
+  is_default: boolean
   colors: { id: string; name: string; hex: string } | null
+}
+
+function parseVariantPriceOverride(input: string): number | null {
+  if (!input.trim()) return null
+  const n = parseMoneyBRL(input)
+  return n > 0 ? n : null
 }
 
 const DRAFT_PREFIX = 'product-editor-draft:'
@@ -120,6 +128,17 @@ export function ProductEditorPage() {
     () => freeStock(productStockNum, variants, editVid),
     [productStockNum, variants, editVid],
   )
+
+  const productListPriceLive = useMemo(() => {
+    const base = basePrice.trim() ? parseMoneyBRL(basePrice) : 0
+    const promo = promoPrice.trim() ? parseMoneyBRL(promoPrice) : null
+    return productListPrice({ base_price: base, promo_price: promo })
+  }, [basePrice, promoPrice])
+
+  const editingDefaultVariant = useMemo(
+    () => (editVid ? variants.some((v) => v.id === editVid && v.is_default) : false),
+    [variants, editVid],
+  )
   const [createStep, setCreateStep] = useState(0)
   const createSteps = ['Dados', 'Preço', 'Mídia', 'Variações', 'Revisão']
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -198,13 +217,14 @@ export function ProductEditorPage() {
     const sb = getSupabaseBrowserClient()
     const { data, error } = await sb
       .from('product_variants')
-      .select('id, name, sku_suffix, price_override, stock, color_id, is_active, colors ( id, name, hex )')
+      .select('id, name, sku_suffix, price_override, stock, color_id, is_active, is_default, colors ( id, name, hex )')
       .eq('product_id', productId)
-      .order('sort_order')
+      .order('created_at', { ascending: false })
     if (error) return
     setVariants(
       (data as unknown as VariantRow[]).map((v) => ({
         ...v,
+        is_default: Boolean(v.is_default),
         colors: v.colors as VariantRow['colors'],
       })),
     )
@@ -500,16 +520,6 @@ export function ProductEditorPage() {
     await persistProduct({ requireValidPrice: true, finishFlow: true })
   }
 
-  function StepSaveBar() {
-    return (
-      <div className="flex justify-end border-t border-ink-100 pt-4">
-        <Button type="button" loading={saving} onClick={() => void saveCurrentStep()}>
-          Salvar
-        </Button>
-      </div>
-    )
-  }
-
   async function addVariant() {
     if (isNew || !id) {
       notifyErr('Salve o produto antes de adicionar variações.')
@@ -537,7 +547,7 @@ export function ProductEditorPage() {
       color_id: vColor || null,
       name: vName.trim(),
       sku_suffix: vSku.trim(),
-      price_override: vPrice.trim() ? parseMoneyBRL(vPrice) : null,
+      price_override: parseVariantPriceOverride(vPrice),
       stock: variantQty,
       is_active: true,
     })
@@ -553,6 +563,30 @@ export function ProductEditorPage() {
       markDirty()
       void loadVariants(id)
     }
+  }
+
+  async function toggleDefaultVariant(v: VariantRow) {
+    if (!id || isNew) return
+    const sb = getSupabaseBrowserClient()
+
+    if (v.is_default) {
+      const { error } = await sb.from('product_variants').update({ is_default: false }).eq('id', v.id).eq('product_id', id)
+      if (error) {
+        notifyErr(error.message)
+        return
+      }
+      notifyOk('Padrão removido. A variação volta a usar o preço próprio cadastrado.')
+    } else {
+      const { error } = await sb.from('product_variants').update({ is_default: true }).eq('id', v.id).eq('product_id', id)
+      if (error) {
+        notifyErr(error.message)
+        return
+      }
+      notifyOk('Variação marcada como padrão. No catálogo, ela usa o preço do produto (as outras padrão continuam iguais).')
+    }
+
+    markDirty()
+    await loadVariants(id)
   }
 
   async function deleteVariant(vid: string) {
@@ -580,6 +614,7 @@ export function ProductEditorPage() {
         return
       }
     }
+    const isDefault = variants.some((v) => v.id === editVid && v.is_default)
     const sb = getSupabaseBrowserClient()
     const { error } = await sb
       .from('product_variants')
@@ -587,7 +622,7 @@ export function ProductEditorPage() {
         name: evName.trim(),
         color_id: evColor || null,
         sku_suffix: evSku.trim(),
-        price_override: evPrice.trim() ? parseMoneyBRL(evPrice) : null,
+        price_override: parseVariantPriceOverride(evPrice),
         stock: variantQty,
       })
       .eq('id', editVid)
@@ -644,12 +679,31 @@ export function ProductEditorPage() {
     }
   }
 
+  function variantPriceDisplay(v: VariantRow): { main: string; hint: string | null } {
+    if (v.is_default) {
+      const stored =
+        v.price_override != null && v.price_override > 0
+          ? ` · ao remover padrão: ${formatCurrency(v.price_override)}`
+          : ''
+      return {
+        main: formatCurrency(productListPriceLive),
+        hint: `Padrão no catálogo${stored}`,
+      }
+    }
+    if (v.price_override != null && v.price_override > 0) {
+      return { main: formatCurrency(v.price_override), hint: null }
+    }
+    return { main: formatCurrency(productListPriceLive), hint: 'Usa preço do produto' }
+  }
+
   function startEdit(v: VariantRow) {
     setEditVid(v.id)
     setEvName(v.name)
     setEvColor(v.color_id ?? '')
     setEvSku(v.sku_suffix ?? '')
-    setEvPrice(v.price_override != null ? formatMoneyFromDecimal(v.price_override) : '')
+    setEvPrice(
+      v.price_override != null && v.price_override > 0 ? formatMoneyFromDecimal(v.price_override) : '',
+    )
     setEvStock(v.stock != null ? String(v.stock) : '')
     setVariantPanel('edit')
     notifyInfo('Editando variação.')
@@ -657,6 +711,7 @@ export function ProductEditorPage() {
 
   if (loading) return <p className="text-sm text-ink-500">Carregando produto…</p>
   const showStep = (index: number) => createStep === index
+  const isLastStep = createStep === createSteps.length - 1
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5">
@@ -695,6 +750,7 @@ export function ProductEditorPage() {
                 <button
                   key={label}
                   type="button"
+                  title={`Ir para a etapa: ${label}.`}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-semibold ${
                     createStep === index ? 'bg-brand-600 text-white' : 'bg-ink-100 text-ink-600'
                   }`}
@@ -708,6 +764,7 @@ export function ProductEditorPage() {
               <button
                 type="button"
                 className="ml-auto whitespace-nowrap rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-200"
+                title="Excluir permanentemente este produto e todas as variações e fotos."
                 onClick={() => {
                   setDeleteConfirmName('')
                   setDeleteOpen(true)
@@ -777,7 +834,6 @@ export function ProductEditorPage() {
               <label className="text-xs font-medium text-ink-600">Descrição completa</label>
               <Textarea className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
             </div>
-            <StepSaveBar />
           </div>
 
           <div className={`space-y-4 md:col-span-2 ${showStep(1) ? '' : 'hidden'}`}>
@@ -838,7 +894,6 @@ export function ProductEditorPage() {
                 placeholder="Ex.: 90 dias, 3 meses, 1 ano"
               />
             </div>
-            <StepSaveBar />
           </div>
 
           <div className={`space-y-4 md:col-span-2 ${showStep(2) ? '' : 'hidden'}`}>
@@ -849,6 +904,7 @@ export function ProductEditorPage() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                title="Publicar o produto no catálogo para os clientes."
                 onClick={() => setIsActive(true)}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${isActive ? 'bg-brand-600 text-white' : 'bg-white text-ink-600'}`}
               >
@@ -856,6 +912,7 @@ export function ProductEditorPage() {
               </button>
               <button
                 type="button"
+                title="Ocultar o produto do catálogo (não aparece para clientes)."
                 onClick={() => setIsActive(false)}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${!isActive ? 'bg-brand-600 text-white' : 'bg-white text-ink-600'}`}
               >
@@ -868,6 +925,7 @@ export function ProductEditorPage() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                title="Destacar o produto na vitrine do catálogo."
                 onClick={() => setIsFeatured(true)}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${isFeatured ? 'bg-amber-500 text-white' : 'bg-white text-ink-600'}`}
               >
@@ -875,6 +933,7 @@ export function ProductEditorPage() {
               </button>
               <button
                 type="button"
+                title="Remover destaque; o produto continua no catálogo normalmente."
                 onClick={() => setIsFeatured(false)}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${!isFeatured ? 'bg-ink-200 text-ink-700' : 'bg-white text-ink-600'}`}
               >
@@ -920,7 +979,17 @@ export function ProductEditorPage() {
                             </div>
                           ) : null}
                         </div>
-                        <Button type="button" variant="ghost" className="w-full text-xs" onClick={() => toggleRemoveImg(im.id)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="w-full text-xs"
+                          tooltip={
+                            gone
+                              ? 'Desfazer a remoção desta foto; ela continuará no produto ao salvar.'
+                              : 'Marcar esta foto para remoção ao salvar o produto.'
+                          }
+                          onClick={() => toggleRemoveImg(im.id)}
+                        >
                           {gone ? 'Manter' : 'Remover'}
                         </Button>
                       </div>
@@ -942,7 +1011,6 @@ export function ProductEditorPage() {
               </div>
             ) : null}
             </div>
-            <StepSaveBar />
           </div>
 
           <div className={`md:col-span-2 ${showStep(4) ? '' : 'hidden'}`}>
@@ -979,7 +1047,6 @@ export function ProductEditorPage() {
                 </div>
               ) : null}
             </div>
-            <StepSaveBar />
           </div>
         </Card>
 
@@ -1010,13 +1077,19 @@ export function ProductEditorPage() {
             {!isNew ? (
               <div className="flex flex-wrap items-center gap-2">
                 {variantPanel === 'list' ? (
-                  <Button type="button" variant="secondary" onClick={() => setVariantPanel('create')}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    tooltip="Cadastrar uma nova cor, tamanho ou preço para este produto."
+                    onClick={() => setVariantPanel('create')}
+                  >
                     Nova variação
                   </Button>
                 ) : (
                   <Button
                     type="button"
                     variant="ghost"
+                    tooltip="Voltar à lista de variações sem salvar o formulário aberto."
                     onClick={() => {
                       setVariantPanel('list')
                       setEditVid(null)
@@ -1039,9 +1112,17 @@ export function ProductEditorPage() {
                             <p className="truncate text-lg font-semibold text-ink-900">{v.name}</p>
                             <p className="mt-0.5 text-[11px] uppercase tracking-wide text-ink-500">Variação ativa</p>
                           </div>
-                          <p className="whitespace-nowrap text-lg font-bold text-ink-900">
-                            {v.price_override != null ? formatCurrency(v.price_override) : 'Padrão'}
-                          </p>
+                          <div className="text-right">
+                            {v.is_default ? (
+                              <span className="mb-1 inline-block rounded-full bg-[var(--cat-accent)]/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-ink-800">
+                                Padrão
+                              </span>
+                            ) : null}
+                            <p className="whitespace-nowrap text-lg font-bold text-ink-900">{variantPriceDisplay(v).main}</p>
+                            {variantPriceDisplay(v).hint ? (
+                              <p className="text-[10px] text-ink-500">{variantPriceDisplay(v).hint}</p>
+                            ) : null}
+                          </div>
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-700">
@@ -1064,14 +1145,36 @@ export function ProductEditorPage() {
                           </span>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <Button type="button" variant="ghost" className="rounded-xl border border-ink-200 py-2 text-sm" onClick={() => startEdit(v)}>
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="rounded-xl border border-ink-200 py-2 text-sm"
+                            tooltip="Editar nome, cor, preço e estoque desta variação."
+                            onClick={() => startEdit(v)}
+                          >
                             Editar
                           </Button>
                           <Button
                             type="button"
                             variant="ghost"
+                            className={`rounded-xl border py-2 text-xs ${
+                              v.is_default ? 'border-[var(--cat-accent)] bg-[var(--cat-accent)]/10' : 'border-ink-200'
+                            }`}
+                            tooltip={
+                              v.is_default
+                                ? 'Remover o padrão: no catálogo volta o preço próprio desta variação.'
+                                : 'Marcar como padrão: no catálogo usa o preço do produto (promo ou base). Outras padrão não são alteradas.'
+                            }
+                            onClick={() => void toggleDefaultVariant(v)}
+                          >
+                            {v.is_default ? 'Remover padrão' : 'Def. padrão'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
                             className="rounded-xl border border-red-200 py-2 text-sm text-red-600"
+                            tooltip="Excluir esta variação permanentemente."
                             onClick={() => void deleteVariant(v.id)}
                           >
                             Excluir
@@ -1090,6 +1193,7 @@ export function ProductEditorPage() {
                           <th className="px-3 py-2">SKU sufixo</th>
                           <th className="px-3 py-2">Preço</th>
                           <th className="px-3 py-2">Qtd</th>
+                          <th className="px-3 py-2">Padrão</th>
                           <th className="px-3 py-2" />
                         </tr>
                       </thead>
@@ -1108,13 +1212,47 @@ export function ProductEditorPage() {
                               )}
                             </td>
                             <td className="px-3 py-2">{v.sku_suffix || '—'}</td>
-                            <td className="px-3 py-2">{v.price_override != null ? formatCurrency(v.price_override) : 'Padrão'}</td>
+                            <td className="px-3 py-2">
+                              <div>
+                                {variantPriceDisplay(v).main}
+                                {variantPriceDisplay(v).hint ? (
+                                  <p className="text-[10px] text-ink-500">{variantPriceDisplay(v).hint}</p>
+                                ) : null}
+                              </div>
+                            </td>
                             <td className="px-3 py-2">{v.stock != null ? v.stock : '—'}</td>
+                            <td className="px-3 py-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className={`text-xs ${v.is_default ? 'font-semibold text-brand-800' : ''}`}
+                                tooltip={
+                                  v.is_default
+                                    ? 'Remover o padrão: no catálogo volta o preço próprio desta variação.'
+                                    : 'Marcar como padrão: no catálogo usa o preço do produto. Outras padrão continuam iguais.'
+                                }
+                                onClick={() => void toggleDefaultVariant(v)}
+                              >
+                                {v.is_default ? 'Remover' : 'Definir'}
+                              </Button>
+                            </td>
                             <td className="px-3 py-2 text-right">
-                              <Button type="button" variant="ghost" className="text-xs" onClick={() => startEdit(v)}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className="text-xs"
+                                tooltip="Editar nome, cor, preço e estoque desta variação."
+                                onClick={() => startEdit(v)}
+                              >
                                 Editar
                               </Button>
-                              <Button type="button" variant="ghost" className="text-xs text-red-600" onClick={() => void deleteVariant(v.id)}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className="text-xs text-red-600"
+                                tooltip="Excluir esta variação permanentemente."
+                                onClick={() => void deleteVariant(v.id)}
+                              >
                                 Excluir
                               </Button>
                             </td>
@@ -1166,6 +1304,7 @@ export function ProductEditorPage() {
                   <div>
                     <label className="text-xs text-ink-500">Preço específico (opcional)</label>
                     <MoneyField className="mt-1" value={vPrice} onValueChange={(m) => setVPrice(m)} />
+                    <p className="mt-1 text-[10px] text-ink-500">Deixe vazio ou zero para usar o preço do produto ({formatCurrency(productListPriceLive)}).</p>
                   </div>
                   <div>
                     <label className="text-xs text-ink-500">Quantidade em estoque</label>
@@ -1179,12 +1318,19 @@ export function ProductEditorPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" onClick={() => void addVariant()} disabled={isNew}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    tooltip="Salvar a nova variação; ela aparece no topo da lista (mais recente primeiro)."
+                    onClick={() => void addVariant()}
+                    disabled={isNew}
+                  >
                     Adicionar variação
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
+                    tooltip="Fechar o formulário sem criar a variação."
                     onClick={() => {
                       setVariantPanel('list')
                       setVName('')
@@ -1233,6 +1379,11 @@ export function ProductEditorPage() {
                   <div>
                     <label className="text-xs text-ink-500">Preço específico (opcional)</label>
                     <MoneyField className="mt-1" value={evPrice} onValueChange={(m) => setEvPrice(m)} />
+                    <p className="mt-1 text-[10px] text-ink-500">
+                      {editingDefaultVariant
+                        ? `No catálogo aparece ${formatCurrency(productListPriceLive)}. O valor acima será usado quando você remover o padrão.`
+                        : 'Deixe vazio ou zero para usar o preço do produto no catálogo.'}
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs text-ink-500">Quantidade em estoque</label>
@@ -1246,12 +1397,18 @@ export function ProductEditorPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" onClick={() => void saveVariantEdit()}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    tooltip="Gravar as alterações desta variação."
+                    onClick={() => void saveVariantEdit()}
+                  >
                     Salvar alterações
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
+                    tooltip="Descartar alterações e voltar à lista."
                     onClick={() => {
                       setEditVid(null)
                       setVariantPanel('list')
@@ -1263,27 +1420,43 @@ export function ProductEditorPage() {
                 </div>
               </div>
             ) : null}
-            <StepSaveBar />
           </Card>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
           {createStep > 0 ? (
-            <Button type="button" variant="secondary" className="flex-1 md:flex-none" onClick={() => setCreateStep((s) => Math.max(0, s - 1))}>
+            <Button
+              type="button"
+              variant="secondary"
+              tooltip="Voltar para a etapa anterior do cadastro."
+              onClick={() => setCreateStep((s) => Math.max(0, s - 1))}
+            >
               Voltar etapa
             </Button>
           ) : (
-            <div className="flex-1 md:hidden" />
+            <div />
           )}
-          <div className="flex flex-1 flex-wrap items-center justify-end gap-2 md:flex-none">
-            <Button type="button" variant="secondary" loading={saving} onClick={() => void saveCurrentStep()}>
-              Salvar
-            </Button>
-            {createStep < createSteps.length - 1 ? (
-              <Button type="button" onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}>
-                Próxima etapa
-              </Button>
+          <div className="flex items-center gap-2">
+            {!isLastStep ? (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={saving}
+                  tooltip="Salvar o progresso desta etapa sem sair do editor."
+                  onClick={() => void saveCurrentStep()}
+                >
+                  Salvar
+                </Button>
+                <Button
+                  type="button"
+                  tooltip="Avançar para a próxima etapa do cadastro."
+                  onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}
+                >
+                  Próxima etapa
+                </Button>
+              </>
             ) : (
-              <Button type="submit" loading={saving} className="hidden md:inline-flex">
+              <Button type="submit" loading={saving} tooltip="Salvar tudo e voltar para a lista de produtos.">
                 Concluir e voltar
               </Button>
             )}
@@ -1292,16 +1465,41 @@ export function ProductEditorPage() {
 
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
           <div className="flex gap-2">
-            <Button type="button" variant="secondary" loading={saving} className="flex-1" onClick={() => void saveCurrentStep()}>
-              Salvar
-            </Button>
-            {createStep < createSteps.length - 1 ? (
-              <Button type="button" className="flex-1" onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}>
-                Próxima
+            {createStep > 0 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="shrink-0 px-3"
+                tooltip="Etapa anterior."
+                onClick={() => setCreateStep((s) => Math.max(0, s - 1))}
+              >
+                Voltar
               </Button>
+            ) : null}
+            {!isLastStep ? (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={saving}
+                  className="flex-1"
+                  tooltip="Salvar esta etapa."
+                  onClick={() => void saveCurrentStep()}
+                >
+                  Salvar
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  tooltip="Próxima etapa."
+                  onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}
+                >
+                  Próxima
+                </Button>
+              </>
             ) : (
-              <Button type="submit" loading={saving} className="flex-1">
-                Concluir
+              <Button type="submit" loading={saving} className="flex-1" tooltip="Salvar e voltar à lista de produtos.">
+                Concluir e voltar
               </Button>
             )}
           </div>
@@ -1331,7 +1529,12 @@ export function ProductEditorPage() {
               />
             </div>
             <div className="mt-5 flex items-center justify-end gap-3">
-              <Button type="button" variant="secondary" onClick={() => setDeleteOpen(false)}>
+              <Button
+                type="button"
+                variant="secondary"
+                tooltip="Fechar sem excluir o produto."
+                onClick={() => setDeleteOpen(false)}
+              >
                 Cancelar
               </Button>
               <Button
@@ -1339,6 +1542,7 @@ export function ProductEditorPage() {
                 variant="danger"
                 loading={deleting}
                 disabled={deleteConfirmName.trim() !== name.trim()}
+                tooltip="Excluir o produto de forma permanente após confirmar o nome."
                 onClick={() => void onDeleteProduct()}
               >
                 Excluir produto

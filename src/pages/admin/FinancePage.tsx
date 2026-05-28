@@ -161,10 +161,20 @@ export function FinancePage() {
       <h2 className="font-display text-2xl font-semibold text-ink-900">Financeiro</h2>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant={section === 'checkout' ? 'primary' : 'secondary'} onClick={() => setSection('checkout')}>
+        <Button
+          type="button"
+          variant={section === 'checkout' ? 'primary' : 'secondary'}
+          tooltip="Formas de pagamento e taxas exibidas no checkout do catálogo."
+          onClick={() => setSection('checkout')}
+        >
           Configuração de pagamento
         </Button>
-        <Button type="button" variant={section === 'cashflow' ? 'primary' : 'secondary'} onClick={() => setSection('cashflow')}>
+        <Button
+          type="button"
+          variant={section === 'cashflow' ? 'primary' : 'secondary'}
+          tooltip="Resumo de pedidos e valores recebidos por forma de pagamento."
+          onClick={() => setSection('cashflow')}
+        >
           Fluxo de caixa
         </Button>
       </div>
@@ -231,7 +241,12 @@ export function FinancePage() {
               />
             </div>
           </div>
-          <Button type="button" loading={savingCfg} onClick={() => void savePaymentConfig()}>
+          <Button
+            type="button"
+            loading={savingCfg}
+            tooltip="Aplicar formas de pagamento e taxas informativas no checkout."
+            onClick={() => void savePaymentConfig()}
+          >
             Salvar configuração de pagamento
           </Button>
         </Card>

@@ -547,7 +547,12 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
 
             Cadastre o <strong>WhatsApp principal para pedidos</strong> na aba Contato antes de conectar.{' '}
 
-            <button type="button" className="font-medium underline" onClick={onGoToContact}>
+            <button
+              type="button"
+              className="font-medium underline"
+              title="Ir para Configurações → Contato e preencher o WhatsApp de pedidos."
+              onClick={onGoToContact}
+            >
 
               Ir para Contato
 
@@ -561,7 +566,12 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
 
             Número para conexão: <span className="font-mono">{ordersPhoneDisplay}</span>
 
-            <button type="button" className="ml-2 text-brand-700 underline" onClick={() => void handleVerifyPhone()}>
+            <button
+              type="button"
+              className="ml-2 text-brand-700 underline"
+              title="Verificar se o número informado possui WhatsApp ativo."
+              onClick={() => void handleVerifyPhone()}
+            >
 
               Verificar se tem WhatsApp
 
@@ -581,10 +591,14 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
 
           <p className="text-sm text-ink-600">Nenhuma instância configurada.</p>
 
-          <Button type="button" loading={creating} disabled={!hasOrdersPhone} onClick={() => void handleCreateAndConnect()}>
-
+          <Button
+            type="button"
+            loading={creating}
+            disabled={!hasOrdersPhone}
+            tooltip="Criar a instância e exibir QR ou código para vincular o WhatsApp de pedidos."
+            onClick={() => void handleCreateAndConnect()}
+          >
             Conectar WhatsApp da loja
-
           </Button>
 
         </Card>
@@ -623,6 +637,8 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
 
               )}
 
+              title="Conectar escaneando o QR Code no celular."
+
               onClick={() => setConnectMode('qr')}
 
             >
@@ -642,6 +658,8 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
                 connectMode === 'pairing' ? 'bg-white shadow-sm' : 'text-ink-600',
 
               )}
+
+              title="Conectar digitando o código de pareamento no WhatsApp."
 
               onClick={() => setConnectMode('pairing')}
 
@@ -689,16 +707,22 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
 
           <div className="flex flex-wrap gap-2">
 
-            <Button type="button" variant="secondary" onClick={() => void handleCreateAndConnect()}>
-
+            <Button
+              type="button"
+              variant="secondary"
+              tooltip="Gerar um novo QR ou código de pareamento se o anterior expirou."
+              onClick={() => void handleCreateAndConnect()}
+            >
               Atualizar QR / código
-
             </Button>
 
-            <Button type="button" variant="danger" onClick={() => setDeleteConfirmOpen(true)}>
-
+            <Button
+              type="button"
+              variant="danger"
+              tooltip="Desconectar e remover a instância WhatsApp desta loja."
+              onClick={() => setDeleteConfirmOpen(true)}
+            >
               Cancelar e excluir
-
             </Button>
 
           </div>
@@ -855,7 +879,12 @@ export function WhatsAppSettingsTab({ storeId, ordersPhoneDigits, onGoToContact 
 
           </ul>
 
-          <Button type="button" loading={savingNotify} onClick={() => void handleSaveNotify()}>
+          <Button
+            type="button"
+            loading={savingNotify}
+            tooltip="Salvar quais eventos disparam mensagens automáticas no WhatsApp."
+            onClick={() => void handleSaveNotify()}
+          >
 
             Salvar mensagens
 

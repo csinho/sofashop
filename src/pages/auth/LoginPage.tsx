@@ -100,6 +100,7 @@ export function LoginPage() {
           <button
             type="button"
             className="w-full text-center text-sm font-medium text-brand-700 hover:underline"
+            title="Enviar e-mail de redefinição de senha para o endereço informado."
             onClick={onRecover}
           >
             Recuperar senha

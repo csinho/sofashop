@@ -102,6 +102,7 @@ export function ProductsPage() {
         <Button
           type="button"
           className="w-full gap-2 sm:w-auto"
+          tooltip="Abrir o formulário para cadastrar um novo produto."
           onClick={() => nav('/admin/produtos/novo')}
           doneToast="Abrindo novo produto."
         >
@@ -152,7 +153,12 @@ export function ProductsPage() {
             {rows.length === 0 ? 'Você ainda não tem produtos cadastrados.' : 'Nenhum produto encontrado com os filtros atuais.'}
           </p>
           {rows.length === 0 ? (
-            <Button type="button" className="w-full sm:w-auto" onClick={() => nav('/admin/produtos/novo')}>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              tooltip="Cadastrar o primeiro produto da loja."
+              onClick={() => nav('/admin/produtos/novo')}
+            >
               <Plus className="h-4 w-4" />
               Criar primeiro produto
             </Button>

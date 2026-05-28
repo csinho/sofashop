@@ -63,6 +63,7 @@ export function ProductImageGallery({
           <button
             type="button"
             className="relative block aspect-square w-full"
+            title="Abrir a imagem em tela cheia."
             onClick={() => setLightbox(true)}
             aria-label="Ampliar imagem"
           >
@@ -81,6 +82,7 @@ export function ProductImageGallery({
                 'absolute left-2 top-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-800 shadow-md backdrop-blur transition hover:bg-white',
                 compactArrows ? 'flex h-8 w-8' : 'flex h-10 w-10',
               )}
+              title="Ver a foto anterior."
               onClick={(e) => {
                 e.stopPropagation()
                 go(-1)
@@ -95,6 +97,7 @@ export function ProductImageGallery({
                 'absolute right-2 top-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-800 shadow-md backdrop-blur transition hover:bg-white',
                 compactArrows ? 'flex h-8 w-8' : 'flex h-10 w-10',
               )}
+              title="Ver a próxima foto."
               onClick={(e) => {
                 e.stopPropagation()
                 go(1)
@@ -113,6 +116,7 @@ export function ProductImageGallery({
                     i === idx ? 'w-6' : 'opacity-50',
                   )}
                   style={{ background: i === idx ? accent : '#cbd5e1' }}
+                  title={`Ir para a foto ${i + 1} de ${list.length}.`}
                   onClick={(e) => {
                     e.stopPropagation()
                     setIdx(i)
@@ -139,6 +143,7 @@ export function ProductImageGallery({
             <button
               type="button"
               className="absolute -right-1 -top-12 z-10 flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-white/25"
+              title="Fechar a visualização ampliada."
               onClick={() => setLightbox(false)}
             >
               <X className="h-4 w-4" />
@@ -154,6 +159,7 @@ export function ProductImageGallery({
                 <button
                   type="button"
                   className="absolute left-2 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-900 shadow-lg hover:bg-white"
+                  title="Foto anterior."
                   onClick={() => go(-1)}
                   aria-label="Anterior"
                 >
@@ -162,6 +168,7 @@ export function ProductImageGallery({
                 <button
                   type="button"
                   className="absolute right-2 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink-900 shadow-lg hover:bg-white"
+                  title="Próxima foto."
                   onClick={() => go(1)}
                   aria-label="Próxima"
                 >

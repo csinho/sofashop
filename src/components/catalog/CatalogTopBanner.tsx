@@ -45,6 +45,7 @@ export function CatalogTopBanner({
       {showBackButton ? (
         <button
           type="button"
+          title="Voltar para a página anterior."
           onClick={onBackClick}
           className="absolute left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[var(--cat-primary)] shadow-md"
           aria-label="Voltar"
@@ -55,6 +56,7 @@ export function CatalogTopBanner({
       {showCartButton ? (
         <Link
           to={`/loja/${slug}/carrinho`}
+          title="Abrir o carrinho de compras."
           className={`absolute right-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[var(--cat-primary)] shadow-md ${
             cartPulse ? 'cart-bump' : ''
           }`}

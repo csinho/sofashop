@@ -46,6 +46,7 @@ export const MoneyField = forwardRef<HTMLInputElement, Props>(function MoneyFiel
           type="button"
           tabIndex={-1}
           className="rounded px-0.5 text-ink-600 hover:bg-white hover:text-ink-900"
+          title={`Aumentar o valor em R$ ${stepReais.toFixed(2).replace('.', ',')}.`}
           aria-label="Aumentar valor"
           onClick={() => applyAmount(parseMoneyBRL(value) + stepReais)}
         >
@@ -55,6 +56,7 @@ export const MoneyField = forwardRef<HTMLInputElement, Props>(function MoneyFiel
           type="button"
           tabIndex={-1}
           className="rounded px-0.5 text-ink-600 hover:bg-white hover:text-ink-900"
+          title={`Diminuir o valor em R$ ${stepReais.toFixed(2).replace('.', ',')}.`}
           aria-label="Diminuir valor"
           onClick={() => applyAmount(parseMoneyBRL(value) - stepReais)}
         >

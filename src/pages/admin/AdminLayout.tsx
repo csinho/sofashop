@@ -121,7 +121,12 @@ export function AdminLayout() {
               className="h-10 w-full max-w-[calc(100%-2.5rem)] origin-left scale-[1.42] object-contain object-left sm:h-11 sm:scale-[1.36] lg:h-12 lg:scale-[1.3] lg:max-w-none"
             />
           </Link>
-          <button type="button" className="rounded-lg p-2 hover:bg-ink-100 lg:hidden" onClick={() => setOpen(false)}>
+          <button
+            type="button"
+            className="rounded-lg p-2 hover:bg-ink-100 lg:hidden"
+            title="Fechar o menu lateral."
+            onClick={() => setOpen(false)}
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -148,6 +153,7 @@ export function AdminLayout() {
           <Button
             variant="ghost"
             className="mt-2 w-full justify-start gap-2 px-2 text-ink-600"
+            tooltip="Encerrar sua sessão no painel da loja."
             onClick={async () => {
               try {
                 await signOut()
@@ -166,13 +172,19 @@ export function AdminLayout() {
         <button
           type="button"
           className="fixed inset-0 z-30 bg-ink-900/40 lg:hidden"
+          title="Fechar o menu lateral."
           aria-label="Fechar menu"
           onClick={() => setOpen(false)}
         />
       ) : null}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:ml-0">
         <header className="z-20 flex h-14 shrink-0 items-center gap-3 border-b border-ink-200 bg-white/90 px-4 backdrop-blur lg:h-16 lg:px-8">
-          <button type="button" className="rounded-lg p-2 hover:bg-ink-100 lg:hidden" onClick={() => setOpen(true)}>
+          <button
+            type="button"
+            className="rounded-lg p-2 hover:bg-ink-100 lg:hidden"
+            title="Abrir o menu lateral."
+            onClick={() => setOpen(true)}
+          >
             <Menu className="h-5 w-5" />
           </button>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -189,6 +201,7 @@ export function AdminLayout() {
                 <button
                   type="button"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 shadow-sm hover:bg-ink-50"
+                  title="Copiar o link público do catálogo para compartilhar com clientes."
                   onClick={async () => {
                     const url = `${window.location.origin}/loja/${store.slug}`
                     try {

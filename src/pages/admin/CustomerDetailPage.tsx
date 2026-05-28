@@ -96,7 +96,13 @@ export function CustomerDetailPage() {
             Visível apenas no painel da loja. O cliente não vê nem edita este campo no catálogo.
           </p>
           <Textarea className="mt-3" value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="Anotações sobre atendimento, preferências, histórico…" />
-          <Button type="button" className="mt-3" loading={savingNotes} onClick={() => void saveNotes()}>
+          <Button
+            type="button"
+            className="mt-3"
+            loading={savingNotes}
+            tooltip="Salvar anotações internas sobre este cliente (não aparecem no catálogo)."
+            onClick={() => void saveNotes()}
+          >
             Salvar observações
           </Button>
         </Card>

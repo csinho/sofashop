@@ -27,6 +27,12 @@ function formatBRL(n: number) {
 
 function paymentHuman(kind: string, details: Record<string, unknown>) {
   const base = PAYMENT_LABEL[kind] ?? kind
+  if (kind === 'cartao_credito' && details.installments) {
+    const inst = details.installments
+    const fee = details.fee_amount as number | undefined
+    if (fee != null && fee > 0) return `${base} (${inst}x, taxa ${formatBRL(fee)})`
+    return `${base} (${inst}x)`
+  }
   if (kind === 'parcelado' && details.installments) return `${base} (${details.installments}x)`
   if (kind === 'entrada_parcelado') {
     const down = details.down_payment as number | undefined

@@ -22,8 +22,30 @@ const BORDER_RGB: [number, number, number] = [100, 116, 139]
 const INK_RGB: [number, number, number] = [15, 23, 42]
 const STUB_H_MM = 46
 
+function orderPaymentFeeAmount(total: number, subtotalItens: number, details: PaymentDetails): number {
+  const fee = details.fee_amount != null ? Number(details.fee_amount) : NaN
+  if (Number.isFinite(fee) && fee > 0) return fee
+  const diff = Math.round((total - subtotalItens) * 100) / 100
+  return diff > 0 ? diff : 0
+}
+
+function formatDeliveryDaysLabel(opt: Record<string, unknown>): string {
+  const raw = opt.delivery_days ?? opt.deliveryDays
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  return n === 1 ? '1 dia útil' : `${Math.round(n)} dias úteis`
+}
+
 function paymentLine(kind: PaymentKind, details: PaymentDetails) {
   const b = PAYMENT_LABEL[kind]
+  if (kind === 'cartao_credito') {
+    const inst = details.installments ?? 1
+    const fee =
+      details.fee_amount != null && details.fee_amount > 0
+        ? ` — taxa ${formatCurrency(details.fee_amount)}`
+        : ''
+    return `${b} — ${inst}x${fee}`
+  }
   if (kind === 'parcelado' && details.installments) return `${b} — ${details.installments}x`
   if (kind === 'entrada_parcelado') {
     const d = details.down_payment != null ? formatCurrency(details.down_payment) : '-'
@@ -217,6 +239,7 @@ export async function generateOrderPdf(opts: {
   let y = margin
 
   const subtotalItens = opts.items.reduce((s, it) => s + it.line_total, 0)
+  const feeAmount = orderPaymentFeeAmount(opts.total, subtotalItens, opts.paymentDetails)
 
   const LOGO_MAX_W_MM = 40
   const LOGO_MAX_H_MM = 22
@@ -355,12 +378,15 @@ export async function generateOrderPdf(opts: {
   y += 4
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
-  const leftFin = [
+  const leftFin: [string, string][] = [
     ['Produtos / serviços', formatCurrency(subtotalItens)],
     ['Frete', formatCurrency(0)],
     ['Descontos', formatCurrency(0)],
-    ['Total do pedido', formatCurrency(opts.total)],
   ]
+  if (feeAmount > 0) {
+    leftFin.push(['Taxas', formatCurrency(feeAmount)])
+  }
+  leftFin.push(['Total do pedido', formatCurrency(opts.total)])
   let yFin = y
   for (const [k, v] of leftFin) {
     doc.text(k, margin, yFin)
@@ -403,6 +429,7 @@ export async function generateOrderPdf(opts: {
       .join(' | ')
     const desc = extra ? `${it.product_name}\n${extra}` : it.product_name
     const warranty = String(opt.warranty ?? '').trim() || '—'
+    const delivery = formatDeliveryDaysLabel(opt)
     return [
       String(idx + 1),
       it.sku,
@@ -411,7 +438,7 @@ export async function generateOrderPdf(opts: {
       String(it.quantity),
       formatCurrency(it.unit_price),
       formatCurrency(it.line_total),
-      '—',
+      delivery,
       warranty,
     ]
   })

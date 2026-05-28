@@ -338,7 +338,7 @@ export function SettingsPage() {
         </Card>
         ) : null}
 
-        <Button type="submit" loading={saving}>
+        <Button type="submit" loading={saving} tooltip="Gravar os dados da aba atual (identidade, contato, endereço, catálogo ou PDF).">
           Salvar alterações
         </Button>
       </form>

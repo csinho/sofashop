@@ -40,7 +40,8 @@ export function catalogAvailableQty(opts: {
   const { productStock, hasVariants, variantStock } = opts
   if (productStock == null) return null
   if (hasVariants) {
-    if (variantStock == null) return 0
+    // Sem variação escolhida ainda: estoque indeterminado (não é esgotado).
+    if (variantStock == null) return null
     return variantStock
   }
   return productStock

@@ -68,7 +68,7 @@ export async function fetchCatalogProducts(storeId: string, filters: CatalogProd
       categories ( id, name, slug ),
       product_images ( id, url, sort_order ),
       product_variants (
-        id, name, price_override, stock, sort_order, is_active,
+        id, name, price_override, stock, sort_order, is_active, is_default,
         color_id,
         colors ( id, name, hex ),
         variant_images ( id, url, sort_order )
@@ -79,6 +79,7 @@ export async function fetchCatalogProducts(storeId: string, filters: CatalogProd
     .eq('is_active', true)
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false })
+    .order('created_at', { foreignTable: 'product_variants', ascending: false })
 
   if (filters.categoryId) {
     q = q.eq('category_id', filters.categoryId)
@@ -164,18 +165,7 @@ export async function fetchCatalogModelTypes(storeId: string) {
   return (data ?? []) as { id: string; name: string; sort_order: number }[]
 }
 
-export function effectivePrice(p: {
-  base_price: number
-  promo_price: number | null
-  product_variants?: { price_override: number | null; is_active: boolean }[]
-}) {
-  const base = p.promo_price != null ? p.promo_price : p.base_price
-  const overrides = (p.product_variants ?? [])
-    .filter((v) => v.is_active && v.price_override != null)
-    .map((v) => v.price_override as number)
-  if (!overrides.length) return base
-  return Math.min(base, ...overrides)
-}
+export { effectivePrice, productListPrice, variantPriceOverrideValue, variantUnitPrice } from '@/lib/productPricing'
 
 export async function fetchCatalogProductBySlug(storeId: string, productSlug: string) {
   const sb = getSupabaseCatalogClient()
@@ -187,7 +177,7 @@ export async function fetchCatalogProductBySlug(storeId: string, productSlug: st
       categories ( id, name, slug ),
       product_images ( id, url, sort_order, alt ),
       product_variants (
-        id, name, sku_suffix, price_override, stock, sort_order, is_active, color_id,
+        id, name, sku_suffix, price_override, stock, sort_order, is_active, is_default, color_id,
         colors ( id, name, hex ),
         variant_images ( id, url, sort_order, alt )
       )
@@ -196,6 +186,7 @@ export async function fetchCatalogProductBySlug(storeId: string, productSlug: st
     .eq('store_id', storeId)
     .eq('slug', productSlug)
     .eq('is_active', true)
+    .order('created_at', { foreignTable: 'product_variants', ascending: false })
     .maybeSingle()
 
   if (error) throw error

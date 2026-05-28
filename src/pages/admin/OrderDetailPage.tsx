@@ -116,14 +116,19 @@ export function OrderDetailPage() {
       const sb = getSupabaseBrowserClient()
       const productIds = Array.from(new Set(order.order_items.map((i) => i.product_id).filter((v): v is string => Boolean(v))))
       const warrantyByProductId = new Map<string, string>()
+      const deliveryDaysByProductId = new Map<string, number>()
       if (productIds.length) {
         const { data: products } = await sb
           .from('products')
-          .select('id, sofa_spec')
+          .select('id, sofa_spec, delivery_days')
           .in('id', productIds)
-        ;((products as { id: string; sofa_spec: { warranty?: string } | null }[] | null) ?? []).forEach((p) => {
+        ;(
+          (products as { id: string; sofa_spec: { warranty?: string } | null; delivery_days: number }[] | null) ?? []
+        ).forEach((p) => {
           const term = String(p.sofa_spec?.warranty ?? '').trim()
           if (term) warrantyByProductId.set(p.id, term)
+          const days = Number(p.delivery_days)
+          if (Number.isFinite(days) && days > 0) deliveryDaysByProductId.set(p.id, days)
         })
       }
 
@@ -138,6 +143,14 @@ export function OrderDetailPage() {
           const currentOptions = (i.options_snapshot as Record<string, unknown> | null) ?? {}
           const snapshotWarranty = String(currentOptions.warranty ?? '').trim()
           const fallbackWarranty = i.product_id ? warrantyByProductId.get(i.product_id) ?? '' : ''
+          const snapshotDays = Number(currentOptions.delivery_days)
+          const fallbackDays = i.product_id ? deliveryDaysByProductId.get(i.product_id) : undefined
+          const deliveryDays =
+            Number.isFinite(snapshotDays) && snapshotDays > 0
+              ? snapshotDays
+              : fallbackDays != null
+                ? fallbackDays
+                : null
           return {
             product_name: i.product_name,
             sku: i.sku,
@@ -147,6 +160,7 @@ export function OrderDetailPage() {
             options_snapshot: {
               ...currentOptions,
               warranty: snapshotWarranty || fallbackWarranty || null,
+              delivery_days: deliveryDays,
             },
           }
         }),
@@ -181,7 +195,12 @@ export function OrderDetailPage() {
           <h2 className="mt-2 font-display text-2xl font-semibold text-ink-900 lg:text-3xl">{order.order_number}</h2>
           <p className="text-sm text-ink-600">{formatDateTime(order.created_at)}</p>
         </div>
-        <Button className="hidden md:inline-flex" onClick={onPdf} loading={generatingPdf}>
+        <Button
+          className="hidden md:inline-flex"
+          tooltip="Baixar o pedido de venda em PDF para impressão ou envio."
+          onClick={onPdf}
+          loading={generatingPdf}
+        >
           Gerar PDF
         </Button>
       </div>
@@ -198,7 +217,11 @@ export function OrderDetailPage() {
               ))}
             </Select>
           </div>
-          <Button className="w-full sm:w-auto" onClick={saveStatus}>
+          <Button
+            className="w-full sm:w-auto"
+            tooltip="Gravar o status selecionado e notificar o cliente no WhatsApp, se configurado."
+            onClick={saveStatus}
+          >
             Salvar status
           </Button>
         </Card>
@@ -307,7 +330,12 @@ export function OrderDetailPage() {
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-white/95 p-3 backdrop-blur md:hidden">
-        <Button className="w-full py-3 text-base" onClick={onPdf} loading={generatingPdf}>
+        <Button
+          className="w-full py-3 text-base"
+          tooltip="Baixar o pedido em PDF."
+          onClick={onPdf}
+          loading={generatingPdf}
+        >
           Gerar PDF
         </Button>
       </div>

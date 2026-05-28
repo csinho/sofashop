@@ -13,6 +13,8 @@ export type CartLine = {
   colorName?: string
   variantLabel?: string
   warranty?: string
+  /** Prazo de entrega do produto (dias úteis) no momento da adição. */
+  deliveryDays?: number
   /** Limite de quantidade conforme estoque no momento da adição. */
   maxQty?: number
 }
@@ -24,6 +26,7 @@ type CartCtx = {
   addLine: (line: Omit<CartLine, 'key'>) => void
   updateQty: (key: string, qty: number) => void
   removeLine: (key: string) => void
+  updateLinePrices: (updates: { key: string; unitPrice: number }[]) => void
   clear: () => void
   subtotal: number
 }
@@ -105,6 +108,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLines((prev) => prev.filter((l) => l.key !== key))
   }, [])
 
+  const updateLinePrices = useCallback((updates: { key: string; unitPrice: number }[]) => {
+    if (!updates.length) return
+    const byKey = new Map(updates.map((u) => [u.key, u.unitPrice]))
+    setLines((prev) =>
+      prev.map((l) => {
+        const next = byKey.get(l.key)
+        return next != null ? { ...l, unitPrice: next } : l
+      }),
+    )
+  }, [])
+
   const clear = useCallback(() => {
     if (storeId) {
       try {
@@ -127,10 +141,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addLine,
       updateQty,
       removeLine,
+      updateLinePrices,
       clear,
       subtotal,
     }),
-    [storeId, lines, setStore, addLine, updateQty, removeLine, clear, subtotal],
+    [storeId, lines, setStore, addLine, updateQty, removeLine, updateLinePrices, clear, subtotal],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

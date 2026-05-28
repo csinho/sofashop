@@ -79,6 +79,7 @@ export function ConfirmDialog({
           <button
             type="button"
             className="shrink-0 rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+            title="Fechar esta confirmação sem executar a ação."
             onClick={onClose}
             disabled={busy}
             aria-label="Fechar"
@@ -87,13 +88,21 @@ export function ConfirmDialog({
           </button>
         </div>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose} disabled={busy}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            tooltip="Fechar sem confirmar a ação."
+            onClick={onClose}
+            disabled={busy}
+          >
             {cancelLabel}
           </Button>
           <Button
             type="button"
             variant={confirmVariant}
             className="w-full sm:w-auto"
+            tooltip="Confirmar e executar a ação."
             loading={busy}
             onClick={onConfirm}
           >
