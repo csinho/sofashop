@@ -170,7 +170,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="w-full max-w-full space-y-6">
       <h2 className="font-display text-2xl font-semibold text-ink-900">Configurações</h2>
       <SettingsTabs active={activeTab} onChange={setActiveTab} />
 
@@ -187,6 +187,7 @@ export function SettingsPage() {
         {activeTab === 'identity' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">Identidade</h3>
+          <div className="grid gap-6 lg:grid-cols-2">
           <div>
             <label className="text-xs font-medium text-ink-600">Banner da loja</label>
             <p className="mt-0.5 text-xs text-ink-500">Envie uma imagem larga para o topo do catálogo público.</p>
@@ -244,21 +245,24 @@ export function SettingsPage() {
               </div>
             ) : null}
           </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Nome fantasia</label>
-            <Input className="mt-1" value={tradeName} onChange={(e) => setTradeName(e.target.value)} required />
           </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Razão social</label>
-            <Input className="mt-1" value={legalName} onChange={(e) => setLegalName(e.target.value)} required />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">CPF/CNPJ</label>
-            <Input className="mt-1" value={maskCpfCnpj(doc)} onChange={(e) => setDoc(maskCpfCnpj(e.target.value))} required />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Texto institucional</label>
-            <Textarea className="mt-1" value={inst} onChange={(e) => setInst(e.target.value)} rows={3} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-ink-600">Nome fantasia</label>
+              <Input className="mt-1" value={tradeName} onChange={(e) => setTradeName(e.target.value)} required />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Razão social</label>
+              <Input className="mt-1" value={legalName} onChange={(e) => setLegalName(e.target.value)} required />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">CPF/CNPJ</label>
+              <Input className="mt-1" value={maskCpfCnpj(doc)} onChange={(e) => setDoc(maskCpfCnpj(e.target.value))} required />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-1">
+              <label className="text-xs font-medium text-ink-600">Texto institucional</label>
+              <Textarea className="mt-1" value={inst} onChange={(e) => setInst(e.target.value)} rows={3} />
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <ColorField id="themeP" label="Cor primária (tema do catálogo)" value={themeP} onChange={setThemeP} />
@@ -270,21 +274,23 @@ export function SettingsPage() {
         {activeTab === 'contact' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">Contato</h3>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Telefone principal</label>
-            <Input className="mt-1" value={phoneMain} onChange={(e) => setPhoneMain(maskPhone(e.target.value))} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">WhatsApp 1</label>
-            <Input className="mt-1" value={wa1} onChange={(e) => setWa1(maskPhone(e.target.value))} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">WhatsApp 2</label>
-            <Input className="mt-1" value={wa2} onChange={(e) => setWa2(maskPhone(e.target.value))} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">WhatsApp principal para pedidos</label>
-            <Input className="mt-1" value={waOrder} onChange={(e) => setWaOrder(maskPhone(e.target.value))} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-ink-600">Telefone principal</label>
+              <Input className="mt-1" value={phoneMain} onChange={(e) => setPhoneMain(maskPhone(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">WhatsApp 1</label>
+              <Input className="mt-1" value={wa1} onChange={(e) => setWa1(maskPhone(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">WhatsApp 2</label>
+              <Input className="mt-1" value={wa2} onChange={(e) => setWa2(maskPhone(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">WhatsApp principal para pedidos</label>
+              <Input className="mt-1" value={waOrder} onChange={(e) => setWaOrder(maskPhone(e.target.value))} />
+            </div>
           </div>
         </Card>
         ) : null}
@@ -302,27 +308,29 @@ export function SettingsPage() {
               <Input className="mt-1" maxLength={2} value={stateUf} onChange={(e) => setStateUf(e.target.value.toUpperCase())} />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Rua</label>
-            <Input className="mt-1" value={street} onChange={(e) => setStreet(e.target.value)} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <label className="text-xs font-medium text-ink-600">Rua</label>
+              <Input className="mt-1" value={street} onChange={(e) => setStreet(e.target.value)} />
+            </div>
             <div>
               <label className="text-xs font-medium text-ink-600">Número</label>
               <Input className="mt-1" value={number} onChange={(e) => setNumber(e.target.value)} />
             </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="text-xs font-medium text-ink-600">Complemento</label>
               <Input className="mt-1" value={complement} onChange={(e) => setComplement(e.target.value)} />
             </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Bairro</label>
-            <Input className="mt-1" value={district} onChange={(e) => setDistrict(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Cidade</label>
-            <Input className="mt-1" value={city} onChange={(e) => setCity(e.target.value)} />
+            <div>
+              <label className="text-xs font-medium text-ink-600">Bairro</label>
+              <Input className="mt-1" value={district} onChange={(e) => setDistrict(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Cidade</label>
+              <Input className="mt-1" value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
           </div>
         </Card>
         ) : null}
@@ -330,13 +338,15 @@ export function SettingsPage() {
         {activeTab === 'catalog' ? (
         <Card className="space-y-4">
           <h3 className="font-display text-lg font-semibold">PDF e catálogo</h3>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Rodapé do PDF</label>
-            <Textarea className="mt-1" value={pdfFooter} onChange={(e) => setPdfFooter(e.target.value)} rows={2} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-ink-600">Política / comunicado (catálogo)</label>
-            <Textarea className="mt-1" value={policy} onChange={(e) => setPolicy(e.target.value)} rows={3} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-ink-600">Rodapé do PDF</label>
+              <Textarea className="mt-1" value={pdfFooter} onChange={(e) => setPdfFooter(e.target.value)} rows={2} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Política / comunicado (catálogo)</label>
+              <Textarea className="mt-1" value={policy} onChange={(e) => setPolicy(e.target.value)} rows={3} />
+            </div>
           </div>
         </Card>
         ) : null}

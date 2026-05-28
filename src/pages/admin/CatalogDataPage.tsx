@@ -167,7 +167,7 @@ export function CatalogDataPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="w-full max-w-full space-y-8">
       <div>
         <h2 className="font-display text-2xl font-semibold text-ink-900">Dados do catálogo</h2>
         <p className="mt-1 text-sm text-ink-600">
@@ -223,7 +223,7 @@ export function CatalogDataPage() {
       <Card className="space-y-4">
         <h3 className="font-display text-lg font-semibold text-ink-900">Categorias</h3>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input className="w-full sm:max-w-md" placeholder="Nome da nova categoria" value={catName} onChange={(e) => setCatName(e.target.value)} />
+          <Input className="min-w-0 flex-1" placeholder="Nome da nova categoria" value={catName} onChange={(e) => setCatName(e.target.value)} />
           <Button
             type="button"
             variant="secondary"
@@ -234,7 +234,7 @@ export function CatalogDataPage() {
             Nova categoria
           </Button>
         </div>
-        <ul className="space-y-3">
+        <ul className="grid gap-3 lg:grid-cols-2">
           {categories.map((c) => (
             <li key={c.id} className="rounded-xl border border-ink-100 bg-ink-50/50 p-3">
               <CategoryNameEditor cat={c} onSave={(name) => void updateCategoryName(c, name)} />
@@ -267,7 +267,7 @@ export function CatalogDataPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input className="w-full sm:max-w-md" placeholder="Nome do tipo" value={mtName} onChange={(e) => setMtName(e.target.value)} />
+          <Input className="min-w-0 flex-1" placeholder="Nome do tipo" value={mtName} onChange={(e) => setMtName(e.target.value)} />
           <Button
             type="button"
             variant="secondary"
