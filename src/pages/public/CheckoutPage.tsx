@@ -29,6 +29,8 @@ import { CreditInstallmentPicker } from '@/components/checkout/CreditInstallment
 import { creditCardInstallmentQuote, formatPercentBr } from '@/lib/creditCardInstallments'
 import { fetchCartPriceChanges, type CartPriceChange } from '@/services/cartPriceValidation'
 import { CartPriceChangeDialog } from '@/components/cart/CartPriceChangeDialog'
+import { calcularTaxaEntrega } from '@/lib/deliveryFee'
+import { fetchStoreDeliveryRates, type StoreDeliveryRates } from '@/services/deliveryFeeService'
 
 export function CheckoutPage() {
   const { store, slug } = useOutletContext<CatalogOutletCtx>()
@@ -37,6 +39,7 @@ export function CheckoutPage() {
   const storeLines = lines.filter((l) => l.storeId === store.id)
   const priceAcceptedRef = useRef(false)
   const [priceChanges, setPriceChanges] = useState<CartPriceChange[] | null>(null)
+  const [deliveryRates, setDeliveryRates] = useState<StoreDeliveryRates | null>(null)
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -62,12 +65,39 @@ export function CheckoutPage() {
 
   const payCfg = useMemo(() => resolveCheckoutConfig(store), [store.id, store.checkout_payment_config])
 
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const rates = await fetchStoreDeliveryRates(store.id)
+        if (!cancelled) setDeliveryRates(rates)
+      } catch {
+        if (!cancelled) setDeliveryRates({ defaultFee: 100, cities: [] })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [store.id])
+
+  const deliveryQuote = useMemo(() => {
+    if (!deliveryRates) return null
+    return calcularTaxaEntrega(
+      city,
+      deliveryRates.cities.map((c) => ({ city_key: c.city_key, fee: Number(c.fee) })),
+      deliveryRates.defaultFee,
+    )
+  }, [city, deliveryRates])
+
+  const deliveryFee = deliveryQuote?.taxa_entrega ?? 0
+  const baseTotal = subtotal + deliveryFee
+
   const creditQuote = useMemo(() => {
     if (payKind !== 'cartao_credito') return null
-    return creditCardInstallmentQuote(subtotal, creditInstallments)
-  }, [payKind, subtotal, creditInstallments])
+    return creditCardInstallmentQuote(baseTotal, creditInstallments)
+  }, [payKind, baseTotal, creditInstallments])
 
-  const checkoutTotal = creditQuote?.total ?? subtotal
+  const checkoutTotal = creditQuote?.total ?? baseTotal
 
   const applyResolved = useCallback((r: ResolvedCatalogCustomer) => {
     setFullName(r.full_name)
@@ -169,7 +199,7 @@ export function CheckoutPage() {
     const secTrim = phoneSecondary.trim()
     const paymentDetails: Record<string, number> = {}
     if (payKind === 'cartao_credito') {
-      const q = creditCardInstallmentQuote(subtotal, creditInstallments)
+      const q = creditCardInstallmentQuote(baseTotal, creditInstallments)
       paymentDetails.installments = q.installments
       paymentDetails.fee_percent = q.percent
       paymentDetails.fee_amount = q.feeAmount
@@ -210,6 +240,13 @@ export function CheckoutPage() {
           district: district.trim(),
           city: city.trim(),
           state: stateUf,
+          ...(deliveryQuote
+            ? {
+                delivery_fee: deliveryQuote.taxa_entrega,
+                delivery_city_key: deliveryQuote.cidade_normalizada,
+                delivery_found: deliveryQuote.encontrado,
+              }
+            : {}),
         },
         paymentKind: payKind,
         paymentDetails,
@@ -248,6 +285,8 @@ export function CheckoutPage() {
     store.id,
     storeLines,
     subtotal,
+    baseTotal,
+    deliveryQuote,
     payKind,
     creditInstallments,
     installments,
@@ -292,6 +331,14 @@ export function CheckoutPage() {
         setErr(pv2.message ?? 'Telefone alternativo inválido')
         return
       }
+    }
+    if (onlyDigits(cep).length !== 8) {
+      setErr('Informe um CEP válido com 8 dígitos.')
+      return
+    }
+    if (!city.trim()) {
+      setErr('Informe a cidade para calcular o frete.')
+      return
     }
 
     await executeCheckout()
@@ -435,7 +482,7 @@ export function CheckoutPage() {
           </Select>
           {payKind === 'cartao_credito' ? (
             <CreditInstallmentPicker
-              subtotal={subtotal}
+              subtotal={baseTotal}
               selected={creditInstallments}
               onSelect={setCreditInstallments}
             />
@@ -473,28 +520,34 @@ export function CheckoutPage() {
         </Card>
 
         <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            {creditQuote ? (
-              <div className="space-y-1">
-                <p className="text-sm text-ink-600">
-                  Subtotal <span className="font-medium text-ink-800">{formatCurrency(subtotal)}</span>
-                  {' · '}
-                  Taxa ({formatPercentBr(creditQuote.percent)}){' '}
+          <div className="space-y-2">
+            <div className="space-y-1 text-sm text-ink-600">
+              <p>
+                Subtotal produtos{' '}
+                <span className="font-medium text-ink-800">{formatCurrency(subtotal)}</span>
+              </p>
+              {city.trim() ? (
+                <p>
+                  Frete / entrega{' '}
+                  <span className="font-medium text-ink-800">{formatCurrency(deliveryFee)}</span>
+                  {deliveryQuote && !deliveryQuote.encontrado ? (
+                    <span className="ml-1 text-xs text-amber-700">(cidade não cadastrada — taxa padrão)</span>
+                  ) : null}
+                </p>
+              ) : (
+                <p className="text-xs text-ink-500">Informe o CEP para calcular o frete.</p>
+              )}
+              {creditQuote ? (
+                <p>
+                  Taxa cartão ({formatPercentBr(creditQuote.percent)}){' '}
                   <span className="font-medium text-ink-800">{formatCurrency(creditQuote.feeAmount)}</span>
                 </p>
-                <p className="text-sm text-ink-600">Total a pagar</p>
-                <p className="text-2xl font-bold" style={{ color: '#000000' }}>
-                  {formatCurrency(checkoutTotal)}
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-ink-600">Total</p>
-                <p className="text-2xl font-bold" style={{ color: '#000000' }}>
-                  {formatCurrency(checkoutTotal)}
-                </p>
-              </>
-            )}
+              ) : null}
+            </div>
+            <p className="text-sm text-ink-600">Total a pagar</p>
+            <p className="text-2xl font-bold" style={{ color: '#000000' }}>
+              {formatCurrency(checkoutTotal)}
+            </p>
           </div>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
           <Button

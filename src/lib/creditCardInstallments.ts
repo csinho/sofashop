@@ -30,11 +30,12 @@ export function creditInstallmentFeePercent(installments: number): number {
   return CREDIT_INSTALLMENT_FEE_PERCENT[n] ?? CREDIT_INSTALLMENT_FEE_PERCENT[10]
 }
 
-export function creditCardInstallmentQuote(subtotal: number, installments: number): CreditInstallmentQuote {
+/** @param amountBeforeCardFee Subtotal dos itens + frete (base antes da taxa da maquinha). */
+export function creditCardInstallmentQuote(amountBeforeCardFee: number, installments: number): CreditInstallmentQuote {
   const n = Math.min(10, Math.max(1, Math.round(installments)))
   const percent = creditInstallmentFeePercent(n)
-  const feeAmount = roundMoney(subtotal * (percent / 100))
-  const total = roundMoney(subtotal + feeAmount)
+  const feeAmount = roundMoney(amountBeforeCardFee * (percent / 100))
+  const total = roundMoney(amountBeforeCardFee + feeAmount)
   return { installments: n, percent, feeAmount, total }
 }
 

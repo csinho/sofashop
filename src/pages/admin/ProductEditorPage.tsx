@@ -614,7 +614,6 @@ export function ProductEditorPage() {
         return
       }
     }
-    const isDefault = variants.some((v) => v.id === editVid && v.is_default)
     const sb = getSupabaseBrowserClient()
     const { error } = await sb
       .from('product_variants')

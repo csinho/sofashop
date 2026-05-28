@@ -255,9 +255,34 @@ export function OrderDetailPage() {
       </div>
 
       <Card className="w-full">
-        <h3 className="font-display text-lg font-semibold text-ink-900">Pagamento</h3>
-        <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
-          {formatOrderPaymentSummary(order.payment_kind, order.payment_details).map((line, i) => (
+        <h3 className="font-display text-lg font-semibold text-ink-900">Valores e pagamento</h3>
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-ink-500">Subtotal produtos</dt>
+            <dd className="font-medium text-ink-900">{formatCurrency(Number(order.subtotal))}</dd>
+          </div>
+          {(() => {
+            const ship = order.shipping_snapshot as Record<string, unknown>
+            const df = Number(ship.delivery_fee ?? 0)
+            if (!Number.isFinite(df)) return null
+            return (
+              <div>
+                <dt className="text-xs text-ink-500">Frete / entrega</dt>
+                <dd className="font-medium text-ink-900">{formatCurrency(df)}</dd>
+              </div>
+            )
+          })()}
+          <div>
+            <dt className="text-xs text-ink-500">Total do pedido</dt>
+            <dd className="font-semibold text-ink-900">{formatCurrency(Number(order.total))}</dd>
+          </div>
+        </dl>
+        <ul className="mt-4 list-inside list-disc space-y-1 text-sm text-ink-700">
+          {formatOrderPaymentSummary(
+            order.payment_kind,
+            order.payment_details,
+            order.shipping_snapshot as Record<string, unknown>,
+          ).map((line, i) => (
             <li key={i}>{line}</li>
           ))}
         </ul>

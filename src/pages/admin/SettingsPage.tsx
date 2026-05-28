@@ -15,6 +15,7 @@ import { useMyStore } from '@/hooks/useMyStore'
 import { notifyErr, notifyOk } from '@/lib/notify'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
 import { SettingsTabs, type SettingsTabId } from '@/pages/admin/settings/SettingsTabs'
+import { DeliveryFeeSettingsTab } from '@/pages/admin/settings/DeliveryFeeSettingsTab'
 import { WhatsAppSettingsTab } from '@/pages/admin/settings/WhatsAppSettingsTab'
 
 export function SettingsPage() {
@@ -179,6 +180,8 @@ export function SettingsPage() {
           ordersPhoneDigits={store.whatsapp_orders_phone}
           onGoToContact={() => setActiveTab('contact')}
         />
+      ) : activeTab === 'delivery' ? (
+        <DeliveryFeeSettingsTab storeId={store.id} />
       ) : (
       <form className="space-y-6" onSubmit={onSave}>
         {activeTab === 'identity' ? (

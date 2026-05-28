@@ -278,21 +278,14 @@ export function CatalogDataPage() {
             Novo tipo
           </Button>
         </div>
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {modelTypes.map((m) => (
-            <li key={m.id} className="rounded-xl border border-ink-100 p-3">
-              <ModelNameEditor row={m} onSave={(name) => void updateModelName(m, name)} />
-              <div className="mt-2 flex justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-red-600"
-                  tooltip="Excluir este tipo de produto."
-                  onClick={() => void removeModelType(m.id)}
-                >
-                  Remover
-                </Button>
-              </div>
+            <li key={m.id} className="rounded-xl border border-ink-200 bg-white px-3 py-3">
+              <ModelNameEditor
+                row={m}
+                onSave={(name) => void updateModelName(m, name)}
+                onRemove={() => void removeModelType(m.id)}
+              />
             </li>
           ))}
         </ul>
@@ -322,23 +315,42 @@ function CategoryNameEditor({ cat, onSave }: { cat: CatRow; onSave: (name: strin
   )
 }
 
-function ModelNameEditor({ row, onSave }: { row: ModelTypeRow; onSave: (name: string) => void }) {
+function ModelNameEditor({
+  row,
+  onSave,
+  onRemove,
+}: {
+  row: ModelTypeRow
+  onSave: (name: string) => void
+  onRemove: () => void
+}) {
   const [v, setV] = useState(row.name)
   useEffect(() => {
     setV(row.name)
   }, [row.id, row.name])
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <Input className="w-full sm:min-w-[200px] sm:flex-1" value={v} onChange={(e) => setV(e.target.value)} />
-      <Button
-        type="button"
-        variant="secondary"
-        className="w-full text-xs sm:w-auto"
-        tooltip="Salvar o novo nome deste tipo de produto."
-        onClick={() => onSave(v)}
-      >
-        Salvar
-      </Button>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+      <Input className="min-w-0 flex-1" value={v} onChange={(e) => setV(e.target.value)} />
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="text-xs"
+          tooltip="Salvar o novo nome deste tipo de produto."
+          onClick={() => onSave(v)}
+        >
+          Salvar
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="text-xs text-red-600"
+          tooltip="Excluir este tipo de produto."
+          onClick={onRemove}
+        >
+          Remover
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { formatCurrency } from '@/lib/format'
 import { PAYMENT_LABEL } from '@/constants/payments'
-import type { PaymentDetails, PaymentKind } from '@/types/database'
+import type { PaymentDetails, PaymentKind, ShippingSnapshot } from '@/types/database'
 
 /** Texto legível para painel (detalhe do pedido, financeiro), sem JSON. */
 export function formatOrderPaymentSummary(
   kind: PaymentKind,
   details: PaymentDetails | Record<string, unknown> | null | undefined,
+  shipping?: ShippingSnapshot | Record<string, unknown> | null,
 ): string[] {
   const d = (details ?? {}) as PaymentDetails & Record<string, unknown>
   const installments = typeof d.installments === 'number' ? d.installments : Number(d.installments)
@@ -18,6 +19,21 @@ export function formatOrderPaymentSummary(
         : NaN
 
   const lines: string[] = []
+
+  const ship = (shipping ?? {}) as ShippingSnapshot
+  const deliveryRaw: unknown = ship.delivery_fee
+  if (deliveryRaw != null && deliveryRaw !== '') {
+  const deliveryFee = typeof deliveryRaw === 'number' ? deliveryRaw : Number(deliveryRaw)
+  if (Number.isFinite(deliveryFee)) {
+    const cityKey = String(ship.delivery_city_key ?? '').trim()
+    const found = ship.delivery_found
+    lines.push(
+      found === false
+        ? `Frete: ${formatCurrency(deliveryFee)} (cidade não cadastrada — taxa padrão)`
+        : `Frete: ${formatCurrency(deliveryFee)}${cityKey ? ` — ${cityKey.replace(/_/g, ' ')}` : ''}`,
+    )
+  }
+  }
 
   switch (kind) {
     case 'pix':

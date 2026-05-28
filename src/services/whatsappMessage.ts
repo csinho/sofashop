@@ -12,7 +12,10 @@ export type WhatsAppOrderSummary = {
   customerPhoneSecondary?: string
   addressLines: string[]
   lines: CartLine[]
-  subtotal: number
+  /** Soma dos itens (sem frete nem taxa de cartão). */
+  itemsSubtotal: number
+  deliveryFee?: number
+  total: number
   paymentKind: PaymentKind
   paymentDetails: Record<string, unknown>
   notes: string
@@ -69,12 +72,14 @@ export function buildWhatsAppMessage(s: WhatsAppOrderSummary) {
     .join('\n\n')
 
   const pay = `💳 *Pagamento:* ${paymentHuman(s.paymentKind, s.paymentDetails)}`
-  const tot = `💰 *Total:* ${formatCurrency(s.subtotal)}`
+  const freight =
+    s.deliveryFee != null && s.deliveryFee > 0 ? `🚚 *Frete:* ${formatCurrency(s.deliveryFee)}` : ''
+  const tot = `💰 *Total:* ${formatCurrency(s.total)}`
   const obs = s.notes.trim()
     ? `📝 *Observações:*\n${s.notes.trim()}`
     : ''
 
-  return [header, when, '', cust, '', '*Itens:*', items, '', pay, tot, obs].filter(Boolean).join('\n')
+  return [header, when, '', cust, '', '*Itens:*', items, '', pay, freight, tot, obs].filter(Boolean).join('\n')
 }
 
 export function openWhatsApp(phoneDigits: string, text: string) {

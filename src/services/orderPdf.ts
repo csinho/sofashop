@@ -22,10 +22,21 @@ const BORDER_RGB: [number, number, number] = [100, 116, 139]
 const INK_RGB: [number, number, number] = [15, 23, 42]
 const STUB_H_MM = 46
 
-function orderPaymentFeeAmount(total: number, subtotalItens: number, details: PaymentDetails): number {
+function shippingDeliveryFee(shipping: Record<string, unknown>): number {
+  const v = shipping.delivery_fee
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
+function orderPaymentFeeAmount(
+  total: number,
+  subtotalItens: number,
+  deliveryFee: number,
+  details: PaymentDetails,
+): number {
   const fee = details.fee_amount != null ? Number(details.fee_amount) : NaN
   if (Number.isFinite(fee) && fee > 0) return fee
-  const diff = Math.round((total - subtotalItens) * 100) / 100
+  const diff = Math.round((total - subtotalItens - deliveryFee) * 100) / 100
   return diff > 0 ? diff : 0
 }
 
@@ -239,7 +250,8 @@ export async function generateOrderPdf(opts: {
   let y = margin
 
   const subtotalItens = opts.items.reduce((s, it) => s + it.line_total, 0)
-  const feeAmount = orderPaymentFeeAmount(opts.total, subtotalItens, opts.paymentDetails)
+  const deliveryFee = shippingDeliveryFee(opts.shipping)
+  const feeAmount = orderPaymentFeeAmount(opts.total, subtotalItens, deliveryFee, opts.paymentDetails)
 
   const LOGO_MAX_W_MM = 40
   const LOGO_MAX_H_MM = 22
@@ -380,7 +392,7 @@ export async function generateOrderPdf(opts: {
   doc.setFontSize(8)
   const leftFin: [string, string][] = [
     ['Produtos / serviços', formatCurrency(subtotalItens)],
-    ['Frete', formatCurrency(0)],
+    ['Frete', formatCurrency(deliveryFee)],
     ['Descontos', formatCurrency(0)],
   ]
   if (feeAmount > 0) {
@@ -482,7 +494,12 @@ export async function generateOrderPdf(opts: {
   doc.text('• Pagamento:', margin, yLeftCond)
   doc.text(pay, margin + 24, yLeftCond, { maxWidth: colW - 2 })
   yLeftCond += 7
-  doc.text('• Frete / entrega: conforme endereço acima (a combinar com a loja).', margin, yLeftCond, {
+  const cityLabel = String(s.city ?? '').trim()
+  const freightCond =
+    deliveryFee > 0
+      ? `• Frete / entrega: ${formatCurrency(deliveryFee)}${cityLabel ? ` (${cityLabel})` : ''}.`
+      : '• Frete / entrega: conforme endereço acima (a combinar com a loja).'
+  doc.text(freightCond, margin, yLeftCond, {
     maxWidth: colW - 2,
   })
   yLeftCond += 8

@@ -59,6 +59,36 @@ export type PaymentDetails = {
   fee_amount?: number
 }
 
+export type ShippingSnapshot = {
+  cep?: string
+  street?: string
+  number?: string
+  complement?: string
+  district?: string
+  city?: string
+  state?: string
+  delivery_fee?: number
+  delivery_city_key?: string
+  delivery_found?: boolean
+}
+
+export type StoreDeliverySettingsRow = {
+  store_id: string
+  default_fee: number
+  updated_at: string
+}
+
+export type StoreDeliveryCityRow = {
+  id: string
+  created_at: string
+  updated_at: string
+  store_id: string
+  city_key: string
+  display_name: string
+  fee: number
+  sort_order: number
+}
+
 export type SofaSpec = {
   seats?: number
   width_cm?: number
@@ -158,6 +188,8 @@ export type Database = {
           integration_hooks: Json
         }
       }
+      store_delivery_settings: { Row: StoreDeliverySettingsRow; Insert: never; Update: Partial<StoreDeliverySettingsRow> }
+      store_delivery_cities: { Row: StoreDeliveryCityRow; Insert: never; Update: Partial<StoreDeliveryCityRow> }
       customers: {
         Row: {
           id: string
@@ -357,6 +389,8 @@ export type Database = {
     Functions: {
       register_store: { Args: Record<string, string | null>; Returns: string }
       checkout_catalog_order: { Args: Record<string, Json | string | null>; Returns: Json }
+      seed_store_delivery_cities: { Args: { p_store_id: string }; Returns: void }
+      lookup_delivery_fee: { Args: { p_store_id: string; p_city: string }; Returns: Json }
       resolve_catalog_customer: {
         Args: { p_store_id: string; p_customer_id?: string | null; p_phone?: string | null }
         Returns: Json

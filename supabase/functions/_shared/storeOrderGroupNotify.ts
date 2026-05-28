@@ -68,6 +68,7 @@ export function buildStoreGroupOrderMessage(opts: {
   items: OrderItem[]
   paymentKind: string
   paymentDetails: Record<string, unknown>
+  deliveryFee?: number
   total: number
   notes: string
 }): string {
@@ -100,10 +101,14 @@ export function buildStoreGroupOrderMessage(opts: {
     .join('\n\n')
 
   const pay = `💳 *Pagamento:* ${paymentHuman(opts.paymentKind, opts.paymentDetails)}`
+  const freight =
+    opts.deliveryFee != null && opts.deliveryFee > 0
+      ? `🚚 *Frete:* ${formatBRL(opts.deliveryFee)}`
+      : ''
   const tot = `💰 *Total:* ${formatBRL(opts.total)}`
   const obs = opts.notes.trim() ? `📝 *Observações:*\n${opts.notes.trim()}` : ''
 
-  return [header, '', cust, '', '*Itens:*', items, '', pay, tot, obs].filter(Boolean).join('\n')
+  return [header, '', cust, '', '*Itens:*', items, '', pay, freight, tot, obs].filter(Boolean).join('\n')
 }
 
 function extractMessageKey(data: unknown): { id: string; remoteJid: string } | null {
@@ -182,6 +187,7 @@ export async function notifyNewOrderToStoreGroup(
     city?: string
     state?: string
     cep?: string
+    delivery_fee?: number
   }
 
   const addressLines = [
@@ -199,6 +205,7 @@ export async function notifyNewOrderToStoreGroup(
     items,
     paymentKind: order.payment_kind,
     paymentDetails: (order.payment_details ?? {}) as Record<string, unknown>,
+    deliveryFee: Number(shipping.delivery_fee ?? 0) || undefined,
     total: Number(order.total),
     notes: order.notes ?? '',
   })

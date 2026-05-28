@@ -1,12 +1,13 @@
 import { cn } from '@/lib/cn'
 
-export type SettingsTabId = 'identity' | 'contact' | 'address' | 'catalog' | 'whatsapp'
+export type SettingsTabId = 'identity' | 'contact' | 'address' | 'catalog' | 'delivery' | 'whatsapp'
 
 const TABS: { id: SettingsTabId; label: string }[] = [
   { id: 'identity', label: 'Identidade' },
   { id: 'contact', label: 'Contato' },
   { id: 'address', label: 'Endereço' },
   { id: 'catalog', label: 'PDF e catálogo' },
+  { id: 'delivery', label: 'Taxa de entrega' },
   { id: 'whatsapp', label: 'WhatsApp' },
 ]
 

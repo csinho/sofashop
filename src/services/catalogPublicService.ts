@@ -1,4 +1,5 @@
 import { getSupabaseCatalogClient } from '@/integrations/supabase/client'
+import { effectivePrice } from '@/lib/productPricing'
 import type { CatalogStoreRow } from '@/types/database'
 
 export type PublicCatalogAccess =

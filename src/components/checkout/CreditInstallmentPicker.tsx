@@ -58,7 +58,7 @@ export function CreditInstallmentPicker({ subtotal, selected, onSelect }: Props)
           </div>
         </dl>
         <p className="mt-2 text-xs text-ink-500">
-          Subtotal do pedido: {formatCurrency(subtotal)}. Valores estimados conforme taxas da maquinha.
+          Valor base (produtos + frete): {formatCurrency(subtotal)}. Valores estimados conforme taxas da maquinha.
         </p>
       </div>
     </div>
