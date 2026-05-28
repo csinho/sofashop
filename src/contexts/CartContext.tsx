@@ -13,6 +13,8 @@ export type CartLine = {
   colorName?: string
   variantLabel?: string
   warranty?: string
+  /** Limite de quantidade conforme estoque no momento da adição. */
+  maxQty?: number
 }
 
 type CartCtx = {
@@ -30,6 +32,12 @@ const Ctx = createContext<CartCtx | null>(null)
 
 function storageKey(storeId: string) {
   return `sofas_cart_${storeId}`
+}
+
+function clampQty(qty: number, maxQty?: number) {
+  const base = Math.max(1, qty)
+  if (maxQty != null && maxQty > 0) return Math.min(base, maxQty)
+  return base
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -65,19 +73,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (idx >= 0) {
         const next = [...base]
         const cur = next[idx]!
+        const maxQty = line.maxQty ?? cur.maxQty
+        const merged = clampQty(cur.qty + line.qty, maxQty)
         next[idx] = {
           ...cur,
-          qty: cur.qty + line.qty,
+          qty: merged,
           unitPrice: line.unitPrice,
           sku: line.sku,
           imageUrl: line.imageUrl,
           colorName: line.colorName,
           variantLabel: line.variantLabel,
           warranty: line.warranty,
+          maxQty,
         }
         return next
       }
-      return [...base, { ...line, key }]
+      return [...base, { ...line, key, qty: clampQty(line.qty, line.maxQty) }]
     })
     setStoreIdState(line.storeId)
   }, [])
@@ -85,7 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateQty = useCallback((key: string, qty: number) => {
     setLines((prev) =>
       prev
-        .map((l) => (l.key === key ? { ...l, qty: Math.max(1, qty) } : l))
+        .map((l) => (l.key === key ? { ...l, qty: clampQty(qty, l.maxQty) } : l))
         .filter((l) => l.qty > 0),
     )
   }, [])

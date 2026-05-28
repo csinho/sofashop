@@ -66,6 +66,7 @@ export function CartPage() {
                   <IntegerField
                     className="w-16 !py-1.5"
                     min={1}
+                    max={l.maxQty}
                     value={String(l.qty)}
                     onValueChange={(d) => updateQty(l.key, Math.max(1, Number(d) || 1))}
                   />
@@ -109,6 +110,7 @@ export function CartPage() {
                     type="button"
                     className="inline-flex h-8 w-8 items-center justify-center text-ink-700"
                     onClick={() => updateQty(l.key, l.qty + 1)}
+                    disabled={l.maxQty != null && l.qty >= l.maxQty}
                     aria-label="Aumentar quantidade"
                   >
                     <Plus className="h-3.5 w-3.5" />

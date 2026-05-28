@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/format'
 import { formatMoneyFromDecimal, parseMoneyBRL } from '@/lib/moneyInput'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { notifyErr, notifyInfo, notifyOk } from '@/lib/notify'
+import { allocatedStock, freeStock, parseStockInput } from '@/lib/productStock'
 import type { AdminOutletCtx } from '@/pages/admin/adminOutlet'
 import type { SofaSpec } from '@/types/database'
 
@@ -31,6 +32,7 @@ type VariantRow = {
   name: string
   sku_suffix: string
   price_override: number | null
+  stock: number | null
   color_id: string | null
   is_active: boolean
   colors: { id: string; name: string; hex: string } | null
@@ -74,6 +76,7 @@ export function ProductEditorPage() {
   const [nextSkuNumber, setNextSkuNumber] = useState(1)
   const [basePrice, setBasePrice] = useState('')
   const [promoPrice, setPromoPrice] = useState('')
+  const [productStock, setProductStock] = useState('')
   const [deliveryDays, setDeliveryDays] = useState('15')
   const [dimL, setDimL] = useState('')
   const [dimW, setDimW] = useState('')
@@ -92,12 +95,14 @@ export function ProductEditorPage() {
   const [vColor, setVColor] = useState('')
   const [vPrice, setVPrice] = useState('')
   const [vSku, setVSku] = useState('')
+  const [vStock, setVStock] = useState('')
 
   const [editVid, setEditVid] = useState<string | null>(null)
   const [evName, setEvName] = useState('')
   const [evColor, setEvColor] = useState('')
   const [evPrice, setEvPrice] = useState('')
   const [evSku, setEvSku] = useState('')
+  const [evStock, setEvStock] = useState('')
   const [variantPanel, setVariantPanel] = useState<'list' | 'create' | 'edit'>('list')
 
   const dirtyRef = useRef(false)
@@ -105,6 +110,16 @@ export function ProductEditorPage() {
   const draftKey = `${DRAFT_PREFIX}${isNew ? 'novo' : id}`
 
   const autoSlug = useMemo(() => slugify(name), [name])
+  const productStockNum = useMemo(() => parseStockInput(productStock), [productStock])
+  const variantsAllocated = useMemo(() => allocatedStock(variants), [variants])
+  const variantsFreeForCreate = useMemo(
+    () => freeStock(productStockNum, variants),
+    [productStockNum, variants],
+  )
+  const variantsFreeForEdit = useMemo(
+    () => freeStock(productStockNum, variants, editVid),
+    [productStockNum, variants, editVid],
+  )
   const [createStep, setCreateStep] = useState(0)
   const createSteps = ['Dados', 'Preço', 'Mídia', 'Variações', 'Revisão']
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -183,7 +198,7 @@ export function ProductEditorPage() {
     const sb = getSupabaseBrowserClient()
     const { data, error } = await sb
       .from('product_variants')
-      .select('id, name, sku_suffix, price_override, color_id, is_active, colors ( id, name, hex )')
+      .select('id, name, sku_suffix, price_override, stock, color_id, is_active, colors ( id, name, hex )')
       .eq('product_id', productId)
       .order('sort_order')
     if (error) return
@@ -267,6 +282,7 @@ export function ProductEditorPage() {
       setSkuTouched(true)
       setBasePrice(formatMoneyFromDecimal(Number(pr.base_price)))
       setPromoPrice(pr.promo_price != null ? formatMoneyFromDecimal(Number(pr.promo_price)) : '')
+      setProductStock(pr.stock != null ? String(Math.floor(Number(pr.stock))) : '')
       setDeliveryDays(String(pr.delivery_days ?? 15))
       setDimL(pr.dimension_length_cm != null ? String(Math.round(Number(pr.dimension_length_cm))) : '')
       setDimW(pr.dimension_width_cm != null ? String(Math.round(Number(pr.dimension_width_cm))) : '')
@@ -385,6 +401,18 @@ export function ProductEditorPage() {
     const finalSku = sku.trim() || buildAutoSku(name, nextSkuNumber)
     if (!sku.trim()) setSku(finalSku)
 
+    const stockValue = parseStockInput(productStock)
+    if (stockValue != null && variants.length > 0) {
+      const allocated = allocatedStock(variants)
+      if (allocated > stockValue) {
+        notifyErr(
+          `As variações somam ${allocated} unidades, acima do estoque total (${stockValue}). Ajuste as quantidades.`,
+        )
+        setSaving(false)
+        return
+      }
+    }
+
     const row = {
       store_id: store.id,
       category_id: finalCategoryId,
@@ -405,6 +433,7 @@ export function ProductEditorPage() {
       dimension_length_cm: dimL.trim() ? Number(dimL.replace(',', '.')) : null,
       dimension_width_cm: dimW.trim() ? Number(dimW.replace(',', '.')) : null,
       dimension_height_cm: dimH.trim() ? Number(dimH.replace(',', '.')) : null,
+      stock: stockValue,
     }
 
     try {
@@ -456,6 +485,18 @@ export function ProductEditorPage() {
       notifyErr('Informe o nome da variação.')
       return
     }
+    const variantQty = parseStockInput(vStock)
+    if (productStockNum != null) {
+      if (variantQty == null) {
+        notifyErr('Informe a quantidade em estoque desta variação.')
+        return
+      }
+      const available = freeStock(productStockNum, variants)
+      if (available != null && variantQty > available) {
+        notifyErr(`Disponível para alocar: ${available} unidade(s).`)
+        return
+      }
+    }
     const sb = getSupabaseBrowserClient()
     const { error } = await sb.from('product_variants').insert({
       product_id: id,
@@ -463,6 +504,7 @@ export function ProductEditorPage() {
       name: vName.trim(),
       sku_suffix: vSku.trim(),
       price_override: vPrice.trim() ? parseMoneyBRL(vPrice) : null,
+      stock: variantQty,
       is_active: true,
     })
     if (error) notifyErr(error.message)
@@ -472,6 +514,7 @@ export function ProductEditorPage() {
       setVColor('')
       setVPrice('')
       setVSku('')
+      setVStock('')
       setVariantPanel('list')
       markDirty()
       void loadVariants(id)
@@ -491,6 +534,18 @@ export function ProductEditorPage() {
 
   async function saveVariantEdit() {
     if (!editVid) return
+    const variantQty = parseStockInput(evStock)
+    if (productStockNum != null) {
+      if (variantQty == null) {
+        notifyErr('Informe a quantidade em estoque desta variação.')
+        return
+      }
+      const available = freeStock(productStockNum, variants, editVid)
+      if (available != null && variantQty > available) {
+        notifyErr(`Disponível para alocar: ${available} unidade(s).`)
+        return
+      }
+    }
     const sb = getSupabaseBrowserClient()
     const { error } = await sb
       .from('product_variants')
@@ -499,6 +554,7 @@ export function ProductEditorPage() {
         color_id: evColor || null,
         sku_suffix: evSku.trim(),
         price_override: evPrice.trim() ? parseMoneyBRL(evPrice) : null,
+        stock: variantQty,
       })
       .eq('id', editVid)
     if (error) notifyErr(error.message)
@@ -560,6 +616,7 @@ export function ProductEditorPage() {
     setEvColor(v.color_id ?? '')
     setEvSku(v.sku_suffix ?? '')
     setEvPrice(v.price_override != null ? formatMoneyFromDecimal(v.price_override) : '')
+    setEvStock(v.stock != null ? String(v.stock) : '')
     setVariantPanel('edit')
     notifyInfo('Editando variação.')
   }
@@ -702,6 +759,25 @@ export function ProductEditorPage() {
               <div>
                 <label className="text-xs font-medium text-ink-600">Prazo entrega (dias)</label>
                 <IntegerField className="mt-1" value={deliveryDays} onValueChange={setDeliveryDays} min={1} />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-medium text-ink-600">Estoque total (unidades)</label>
+                <IntegerField
+                  className="mt-1 max-w-xs"
+                  value={productStock}
+                  onValueChange={setProductStock}
+                  min={0}
+                  placeholder="ex.: 10"
+                />
+                <p className="mt-1 text-xs text-ink-500">
+                  Quantidade total em estoque. Distribua nas variações (cores) na etapa Variações. Deixe vazio para não
+                  controlar estoque.
+                </p>
+                {productStockNum != null && variants.length > 0 ? (
+                  <p className="mt-1 text-xs font-medium text-ink-700">
+                    Alocado nas variações: {variantsAllocated} · Livre: {Math.max(productStockNum - variantsAllocated, 0)}
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -879,6 +955,15 @@ export function ProductEditorPage() {
               {isNew ? (
                 <p className="mt-2 text-xs text-amber-700">Salve o produto para habilitar o cadastro de variações.</p>
               ) : null}
+              {colors.length === 0 ? (
+                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  Cadastre cores em{' '}
+                  <Link to="/admin/dados-catalogo" className="font-semibold underline">
+                    Dados do catálogo → Cores
+                  </Link>{' '}
+                  para associar às variações.
+                </p>
+              ) : null}
             </div>
 
             {!isNew ? (
@@ -933,6 +1018,9 @@ export function ProductEditorPage() {
                           <span className="rounded-full bg-ink-100 px-2.5 py-1">
                             SKU: <span className="font-medium">{v.sku_suffix || '—'}</span>
                           </span>
+                          <span className="rounded-full bg-ink-100 px-2.5 py-1">
+                            Estoque: <span className="font-medium">{v.stock != null ? v.stock : '—'}</span>
+                          </span>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -960,6 +1048,7 @@ export function ProductEditorPage() {
                           <th className="px-3 py-2">Cor</th>
                           <th className="px-3 py-2">SKU sufixo</th>
                           <th className="px-3 py-2">Preço</th>
+                          <th className="px-3 py-2">Qtd</th>
                           <th className="px-3 py-2" />
                         </tr>
                       </thead>
@@ -979,6 +1068,7 @@ export function ProductEditorPage() {
                             </td>
                             <td className="px-3 py-2">{v.sku_suffix || '—'}</td>
                             <td className="px-3 py-2">{v.price_override != null ? formatCurrency(v.price_override) : 'Padrão'}</td>
+                            <td className="px-3 py-2">{v.stock != null ? v.stock : '—'}</td>
                             <td className="px-3 py-2 text-right">
                               <Button type="button" variant="ghost" className="text-xs" onClick={() => startEdit(v)}>
                                 Editar
@@ -1001,6 +1091,17 @@ export function ProductEditorPage() {
             {variantPanel === 'create' ? (
               <div className="rounded-xl border border-dashed border-ink-200 p-4">
                 <p className="text-xs font-medium text-ink-600">Nova variação</p>
+                {productStockNum != null ? (
+                  <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-900">
+                    Estoque total: <strong>{productStockNum}</strong> · Já alocado: <strong>{variantsAllocated}</strong> ·
+                    Disponível para esta variação:{' '}
+                    <strong>{variantsFreeForCreate ?? 0}</strong>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-700">
+                    Defina o estoque total do produto na etapa Preço para distribuir quantidades por variação.
+                  </p>
+                )}
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div>
                     <label className="text-xs text-ink-500">Nome</label>
@@ -1025,6 +1126,16 @@ export function ProductEditorPage() {
                     <label className="text-xs text-ink-500">Preço específico (opcional)</label>
                     <MoneyField className="mt-1" value={vPrice} onValueChange={(m) => setVPrice(m)} />
                   </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Quantidade em estoque</label>
+                    <IntegerField
+                      className="mt-1"
+                      value={vStock}
+                      onValueChange={setVStock}
+                      min={0}
+                      placeholder={productStockNum != null ? `máx. ${variantsFreeForCreate ?? 0}` : 'opcional'}
+                    />
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" variant="secondary" onClick={() => void addVariant()} disabled={isNew}>
@@ -1039,18 +1150,25 @@ export function ProductEditorPage() {
                       setVColor('')
                       setVPrice('')
                       setVSku('')
+                      setVStock('')
                     }}
                   >
                     Cancelar
                   </Button>
                 </div>
-                <p className="mt-2 text-xs text-ink-500">Cadastre cores em Dados do catálogo → Cores.</p>
               </div>
             ) : null}
 
             {variantPanel === 'edit' && editVid ? (
               <div className="rounded-xl border border-ink-200 p-4">
                 <p className="text-xs font-medium text-ink-600">Editar variação</p>
+                {productStockNum != null ? (
+                  <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-900">
+                    Estoque total: <strong>{productStockNum}</strong> · Já alocado (outras variações):{' '}
+                    <strong>{allocatedStock(variants, editVid)}</strong> · Disponível para esta variação:{' '}
+                    <strong>{variantsFreeForEdit ?? 0}</strong>
+                  </p>
+                ) : null}
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div>
                     <label className="text-xs text-ink-500">Nome</label>
@@ -1074,6 +1192,16 @@ export function ProductEditorPage() {
                   <div>
                     <label className="text-xs text-ink-500">Preço específico (opcional)</label>
                     <MoneyField className="mt-1" value={evPrice} onValueChange={(m) => setEvPrice(m)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-500">Quantidade em estoque</label>
+                    <IntegerField
+                      className="mt-1"
+                      value={evStock}
+                      onValueChange={setEvStock}
+                      min={0}
+                      placeholder={productStockNum != null ? `máx. ${variantsFreeForEdit ?? 0}` : 'opcional'}
+                    />
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">

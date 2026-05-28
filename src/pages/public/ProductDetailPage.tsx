@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { formatCurrency } from '@/lib/format'
 import { IntegerField } from '@/components/ui/IntegerField'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
+import { catalogAvailableQty } from '@/lib/productStock'
 import { effectivePrice, fetchCatalogProductBySlug } from '@/services/catalogPublicService'
 import { notifyInfo, notifyOk } from '@/lib/notify'
 import { useCart } from '@/contexts/CartContext'
@@ -20,6 +21,8 @@ type Variant = {
   colors: { name: string; hex: string } | null
   variant_images: { url: string; sort_order: number }[]
 }
+
+const VARIANT_PICK_MSG = 'Selecione uma cor ou variação antes de adicionar ao carrinho.'
 
 export function ProductDetailPage() {
   const { store, slug, setBannerImageUrl } = useOutletContext<CatalogOutletCtx>()
@@ -41,6 +44,7 @@ export function ProductDetailPage() {
         if (!alive) return
         setProduct(p as Record<string, unknown> | null)
         setVariantId(null)
+        setQty(1)
       } finally {
         if (alive) setLoading(false)
       }
@@ -52,8 +56,28 @@ export function ProductDetailPage() {
 
   const variants = (product?.product_variants as Variant[] | undefined) ?? []
   const activeVariants = variants.filter((v) => v.is_active)
+  const hasVariants = activeVariants.length > 0
 
   const selected = activeVariants.find((v) => v.id === variantId) ?? null
+
+  const productStock =
+    product?.stock != null && product.stock !== '' ? Number(product.stock) : null
+
+  const stockControlled = productStock != null && !Number.isNaN(productStock)
+
+  const availableQty = useMemo(
+    () =>
+      catalogAvailableQty({
+        productStock: stockControlled ? productStock : null,
+        hasVariants,
+        variantStock: selected?.stock,
+      }),
+    [stockControlled, productStock, hasVariants, selected?.stock],
+  )
+
+  const variantRequired = hasVariants && variantId == null
+  const isOutOfStock = stockControlled && availableQty != null && availableQty < 1
+  const addDisabled = variantRequired || isOutOfStock
 
   const basePrice = useMemo(() => {
     if (!product) return 0
@@ -84,6 +108,11 @@ export function ProductDetailPage() {
     }
   }, [images, setBannerImageUrl])
 
+  useEffect(() => {
+    if (availableQty == null) return
+    setQty((q) => Math.min(Math.max(1, q), availableQty))
+  }, [availableQty, variantId])
+
   if (loading) return <div className="p-10 text-center text-ink-500">Carregando…</div>
   if (!product) {
     return (
@@ -112,6 +141,18 @@ export function ProductDetailPage() {
 
   function handleAdd() {
     if (!product) return
+    if (variantRequired) {
+      notifyInfo(VARIANT_PICK_MSG)
+      return
+    }
+    if (isOutOfStock) {
+      notifyInfo('Produto esgotado no momento.')
+      return
+    }
+    if (stockControlled && availableQty != null && qty > availableQty) {
+      notifyInfo(`Quantidade máxima disponível: ${availableQty}.`)
+      return
+    }
     const warrantyTerm = String((product.sofa_spec as { warranty?: string } | null | undefined)?.warranty ?? '').trim()
     addLine({
       storeId: store.id,
@@ -125,10 +166,13 @@ export function ProductDetailPage() {
       colorName: selected?.colors?.name,
       variantLabel: selected?.name,
       warranty: warrantyTerm || undefined,
+      maxQty: availableQty ?? undefined,
     })
     notifyOk('Produto adicionado ao carrinho.')
     nav(`/loja/${slug}`)
   }
+
+  const qtyMax = availableQty ?? undefined
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-8">
@@ -148,6 +192,12 @@ export function ProductDetailPage() {
           {hasProductPromo ? (
             <p className="text-sm line-through" style={{ color: '#9fa2ad' }}>
               {formatCurrency(productBasePrice)}
+            </p>
+          ) : null}
+
+          {stockControlled && availableQty != null ? (
+            <p className={`mt-2 text-sm font-medium ${availableQty < 1 ? 'text-red-600' : 'text-ink-600'}`}>
+              {availableQty < 1 ? 'Esgotado' : `${availableQty} unidade(s) em estoque`}
             </p>
           ) : null}
 
@@ -172,35 +222,24 @@ export function ProductDetailPage() {
             </div>
           ) : null}
 
-          {activeVariants.length > 0 ? (
+          {hasVariants ? (
             <div className="mt-6">
-              <p className="text-xs font-medium text-ink-600">Cor / variação</p>
+              <p className="text-xs font-medium text-ink-600">Cor / variação *</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVariantId(null)
-                    notifyInfo('Preço normal selecionado.')
-                  }}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    selected == null
-                      ? 'border-[var(--cat-accent)] bg-[var(--cat-accent)]/10 text-ink-900'
-                      : 'border-ink-200 bg-white text-ink-700 hover:border-ink-300'
-                  }`}
-                >
-                  Sem variação
-                </button>
                 {activeVariants.map((v) => {
                   const active = v.id === variantId
+                  const variantOut =
+                    stockControlled && v.stock != null && v.stock < 1
                   return (
                     <button
                       key={v.id}
                       type="button"
+                      disabled={variantOut}
                       onClick={() => {
                         setVariantId(v.id)
                         notifyInfo('Variação selecionada.')
                       }}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
                         active
                           ? 'border-[var(--cat-accent)] bg-[var(--cat-accent)]/10 text-ink-900'
                           : 'border-ink-200 bg-white text-ink-700 hover:border-ink-300'
@@ -210,6 +249,7 @@ export function ProductDetailPage() {
                         <span className="h-4 w-4 rounded-full ring-1 ring-ink-200" style={{ background: v.colors.hex }} />
                       ) : null}
                       {v.name}
+                      {variantOut ? ' (esgotado)' : null}
                     </button>
                   )
                 })}
@@ -222,14 +262,32 @@ export function ProductDetailPage() {
             <IntegerField
               className="w-20"
               min={1}
+              max={qtyMax}
               value={String(qty)}
-              onValueChange={(d) => setQty(Math.max(1, Number(d) || 1))}
+              onValueChange={(d) => {
+                const n = Math.max(1, Number(d) || 1)
+                setQty(qtyMax != null ? Math.min(n, qtyMax) : n)
+              }}
+              disabled={isOutOfStock}
             />
           </div>
 
+          {variantRequired ? (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900" role="alert">
+              {VARIANT_PICK_MSG}
+            </p>
+          ) : null}
+
+          {isOutOfStock && !variantRequired ? (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800" role="alert">
+              Produto esgotado no momento.
+            </p>
+          ) : null}
+
           <Button
             variant="catalog"
-            className="mt-8 hidden w-full max-w-sm bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)] md:inline-flex"
+            disabled={addDisabled}
+            className="mt-4 hidden w-full max-w-sm bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)] disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
             onClick={handleAdd}
           >
             Adicionar ao carrinho
@@ -244,11 +302,17 @@ export function ProductDetailPage() {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 p-3 backdrop-blur md:hidden">
+        {variantRequired ? (
+          <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-900">
+            {VARIANT_PICK_MSG}
+          </p>
+        ) : null}
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <div className="flex items-center rounded-2xl border border-ink-200 bg-white">
             <button
               type="button"
-              className="px-3 py-2 text-lg font-semibold text-ink-700"
+              className="px-3 py-2 text-lg font-semibold text-ink-700 disabled:opacity-40"
+              disabled={isOutOfStock || qty <= 1}
               onClick={() => setQty((q) => Math.max(1, q - 1))}
               aria-label="Diminuir quantidade"
             >
@@ -257,8 +321,9 @@ export function ProductDetailPage() {
             <span className="min-w-10 text-center text-base font-semibold text-ink-900">{qty}</span>
             <button
               type="button"
-              className="px-3 py-2 text-lg font-semibold text-ink-700"
-              onClick={() => setQty((q) => q + 1)}
+              className="px-3 py-2 text-lg font-semibold text-ink-700 disabled:opacity-40"
+              disabled={isOutOfStock || (qtyMax != null && qty >= qtyMax)}
+              onClick={() => setQty((q) => (qtyMax != null ? Math.min(q + 1, qtyMax) : q + 1))}
               aria-label="Aumentar quantidade"
             >
               +
@@ -266,7 +331,8 @@ export function ProductDetailPage() {
           </div>
           <Button
             variant="catalog"
-            className="flex-1 bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)]"
+            disabled={addDisabled}
+            className="flex-1 bg-[var(--cat-primary)] py-3 text-base hover:opacity-95 focus-visible:outline-[var(--cat-primary)] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={handleAdd}
           >
             Adicionar ao carrinho

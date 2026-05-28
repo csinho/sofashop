@@ -19,10 +19,21 @@ type Row = {
   sku: string
   base_price: number
   promo_price: number | null
+  stock: number | null
   is_active: boolean
   is_featured: boolean
   categories: { name: string } | { name: string }[] | null
   product_images: { url: string; sort_order: number }[] | null
+  product_variants: { stock: number | null }[] | null
+}
+
+function formatStockLabel(r: Row): string {
+  if (r.stock == null) return '—'
+  const allocated = (r.product_variants ?? []).reduce((sum, v) => sum + (v.stock ?? 0), 0)
+  if ((r.product_variants?.length ?? 0) > 0) {
+    return `${r.stock} (${allocated} em var.)`
+  }
+  return String(r.stock)
 }
 
 export function ProductsPage() {
@@ -41,7 +52,9 @@ export function ProductsPage() {
       const sb = getSupabaseBrowserClient()
       const { data } = await sb
         .from('products')
-        .select('id, name, slug, sku, base_price, promo_price, is_active, is_featured, categories(name), product_images(url, sort_order)')
+        .select(
+          'id, name, slug, sku, base_price, promo_price, stock, is_active, is_featured, categories(name), product_images(url, sort_order), product_variants(stock)',
+        )
         .eq('store_id', store.id)
         .order('created_at', { ascending: false })
       if (!alive) return
@@ -178,6 +191,7 @@ export function ProductsPage() {
                       {r.promo_price != null ? (
                         <p className="text-xs text-ink-400 line-through">{formatCurrency(r.base_price)}</p>
                       ) : null}
+                      <p className="text-xs text-ink-600">Estoque: {formatStockLabel(r)}</p>
                     </div>
                     <Link
                       className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-brand-700"
@@ -199,6 +213,7 @@ export function ProductsPage() {
                   <th className="px-4 py-3">SKU</th>
                   <th className="px-4 py-3">Categoria</th>
                   <th className="px-4 py-3">Preço</th>
+                  <th className="px-4 py-3">Estoque</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -220,6 +235,7 @@ export function ProductsPage() {
                         <span className="ml-2 text-xs text-ink-400 line-through">{formatCurrency(r.base_price)}</span>
                       ) : null}
                     </td>
+                    <td className="px-4 py-3 text-ink-600">{formatStockLabel(r)}</td>
                     <td className="px-4 py-3">{r.is_active ? <Badge>Ativo</Badge> : <span className="text-xs text-ink-400">Inativo</span>}</td>
                     <td className="px-4 py-3 text-right">
                       <Link className="font-medium text-brand-700 hover:underline" to={`/admin/produtos/${r.id}`}>

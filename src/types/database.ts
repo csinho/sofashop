@@ -212,6 +212,7 @@ export type Database = {
           dimension_length_cm: number | null
           dimension_width_cm: number | null
           dimension_height_cm: number | null
+          stock: number | null
         }
       }
       product_images: {
