@@ -348,22 +348,29 @@ export function ProductEditorPage() {
     }
   }
 
-  async function onSave(e: FormEvent) {
-    e.preventDefault()
+  async function persistProduct(opts: { requireValidPrice?: boolean; finishFlow?: boolean } = {}) {
+    const { requireValidPrice = false, finishFlow = false } = opts
+
+    if (!name.trim()) {
+      notifyErr('Informe o nome do produto.')
+      return false
+    }
+
     const spec: SofaSpec = {
       warranty: warranty.trim() || undefined,
     }
 
     if (visibleCount > MAX_IMAGES) {
       notifyErr(`No máximo ${MAX_IMAGES} imagens (contando as já publicadas e as novas).`)
-      return
+      return false
     }
 
     const baseNum = parseMoneyBRL(basePrice)
-    if (baseNum <= 0) {
+    if (requireValidPrice && baseNum <= 0) {
       notifyErr('Informe um preço base válido.')
-      return
+      return false
     }
+    const effectiveBase = baseNum > 0 ? baseNum : 0
 
     setSaving(true)
     const sb = getSupabaseBrowserClient()
@@ -386,7 +393,7 @@ export function ProductEditorPage() {
       if (catErr) {
         notifyErr('Não foi possível definir categoria padrão. Verifique os dados do catálogo.')
         setSaving(false)
-        return
+        return false
       }
       finalCategoryId = String((insertedCat as { id: string }).id)
       setCategoryId(finalCategoryId)
@@ -409,7 +416,7 @@ export function ProductEditorPage() {
           `As variações somam ${allocated} unidades, acima do estoque total (${stockValue}). Ajuste as quantidades.`,
         )
         setSaving(false)
-        return
+        return false
       }
     }
 
@@ -423,7 +430,7 @@ export function ProductEditorPage() {
       short_description: shortDesc.trim(),
       description: description.trim(),
       sku: finalSku,
-      base_price: baseNum,
+      base_price: effectiveBase,
       promo_price: promoPrice.trim() ? parseMoneyBRL(promoPrice) : null,
       is_active: isActive,
       is_featured: isFeatured,
@@ -444,8 +451,13 @@ export function ProductEditorPage() {
         await uploadImages(sb, pid)
         sessionStorage.removeItem(draftKey)
         dirtyRef.current = false
-        notifyOk('Produto criado.')
-        nav('/admin/produtos')
+        if (finishFlow) {
+          notifyOk('Produto criado.')
+          nav('/admin/produtos')
+        } else {
+          notifyOk('Produto salvo.')
+          nav(`/admin/produtos/${pid}`, { replace: true })
+        }
       } else {
         const { error } = await sb.from('products').update(row).eq('id', id!).eq('store_id', store.id)
         if (error) throw error
@@ -466,14 +478,36 @@ export function ProductEditorPage() {
         setExistingImgs((imgs as ImgRow[]) ?? [])
         sessionStorage.removeItem(draftKey)
         dirtyRef.current = false
-        notifyOk('Produto atualizado.')
+        notifyOk(finishFlow ? 'Produto atualizado.' : 'Alterações salvas.')
         await loadVariants(id!)
       }
+      return true
     } catch (err: unknown) {
       notifyErr(err instanceof Error ? err.message : 'Erro ao salvar')
+      return false
     } finally {
       setSaving(false)
     }
+  }
+
+  async function saveCurrentStep() {
+    const requireValidPrice = createStep === 1 || createStep === createSteps.length - 1
+    await persistProduct({ requireValidPrice, finishFlow: false })
+  }
+
+  async function onSave(e: FormEvent) {
+    e.preventDefault()
+    await persistProduct({ requireValidPrice: true, finishFlow: true })
+  }
+
+  function StepSaveBar() {
+    return (
+      <div className="flex justify-end border-t border-ink-100 pt-4">
+        <Button type="button" loading={saving} onClick={() => void saveCurrentStep()}>
+          Salvar
+        </Button>
+      </div>
+    )
   }
 
   async function addVariant() {
@@ -743,6 +777,7 @@ export function ProductEditorPage() {
               <label className="text-xs font-medium text-ink-600">Descrição completa</label>
               <Textarea className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
             </div>
+            <StepSaveBar />
           </div>
 
           <div className={`space-y-4 md:col-span-2 ${showStep(1) ? '' : 'hidden'}`}>
@@ -760,25 +795,25 @@ export function ProductEditorPage() {
                 <label className="text-xs font-medium text-ink-600">Prazo entrega (dias)</label>
                 <IntegerField className="mt-1" value={deliveryDays} onValueChange={setDeliveryDays} min={1} />
               </div>
-              <div className="md:col-span-2">
-                <label className="text-xs font-medium text-ink-600">Estoque total (unidades)</label>
-                <IntegerField
-                  className="mt-1 max-w-xs"
-                  value={productStock}
-                  onValueChange={setProductStock}
-                  min={0}
-                  placeholder="ex.: 10"
-                />
-                <p className="mt-1 text-xs text-ink-500">
-                  Quantidade total em estoque. Distribua nas variações (cores) na etapa Variações. Deixe vazio para não
-                  controlar estoque.
+            </div>
+            <div>
+              <label className="text-xs font-medium text-ink-600">Estoque total (unidades)</label>
+              <IntegerField
+                className="mt-1 block w-full max-w-xs"
+                value={productStock}
+                onValueChange={setProductStock}
+                min={0}
+                placeholder="ex.: 10"
+              />
+              <p className="mt-1 text-xs text-ink-500">
+                Quantidade total em estoque. Distribua nas variações (cores) na etapa Variações. Deixe vazio para não
+                controlar estoque.
+              </p>
+              {productStockNum != null && variants.length > 0 ? (
+                <p className="mt-1 text-xs font-medium text-ink-700">
+                  Alocado nas variações: {variantsAllocated} · Livre: {Math.max(productStockNum - variantsAllocated, 0)}
                 </p>
-                {productStockNum != null && variants.length > 0 ? (
-                  <p className="mt-1 text-xs font-medium text-ink-700">
-                    Alocado nas variações: {variantsAllocated} · Livre: {Math.max(productStockNum - variantsAllocated, 0)}
-                  </p>
-                ) : null}
-              </div>
+              ) : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -803,6 +838,7 @@ export function ProductEditorPage() {
                 placeholder="Ex.: 90 dias, 3 meses, 1 ano"
               />
             </div>
+            <StepSaveBar />
           </div>
 
           <div className={`space-y-4 md:col-span-2 ${showStep(2) ? '' : 'hidden'}`}>
@@ -906,6 +942,7 @@ export function ProductEditorPage() {
               </div>
             ) : null}
             </div>
+            <StepSaveBar />
           </div>
 
           <div className={`md:col-span-2 ${showStep(4) ? '' : 'hidden'}`}>
@@ -942,6 +979,7 @@ export function ProductEditorPage() {
                 </div>
               ) : null}
             </div>
+            <StepSaveBar />
           </div>
         </Card>
 
@@ -953,7 +991,10 @@ export function ProductEditorPage() {
                 O cliente escolhe a variação no catálogo; o preço pode ser ajustado sem criar outro produto.
               </p>
               {isNew ? (
-                <p className="mt-2 text-xs text-amber-700">Salve o produto para habilitar o cadastro de variações.</p>
+                <p className="mt-2 text-xs text-amber-700">
+                  Clique em <strong>Salvar</strong> nesta etapa (ou em Dados/Preço) para gravar o produto e liberar as
+                  variações.
+                </p>
               ) : null}
               {colors.length === 0 ? (
                 <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -1222,9 +1263,10 @@ export function ProductEditorPage() {
                 </div>
               </div>
             ) : null}
+            <StepSaveBar />
           </Card>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {createStep > 0 ? (
             <Button type="button" variant="secondary" className="flex-1 md:flex-none" onClick={() => setCreateStep((s) => Math.max(0, s - 1))}>
               Voltar etapa
@@ -1232,25 +1274,37 @@ export function ProductEditorPage() {
           ) : (
             <div className="flex-1 md:hidden" />
           )}
-          {createStep < createSteps.length - 1 ? (
-            <Button type="button" className="flex-1 md:flex-none" onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}>
-              Próxima etapa
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-2 md:flex-none">
+            <Button type="button" variant="secondary" loading={saving} onClick={() => void saveCurrentStep()}>
+              Salvar
             </Button>
-          ) : createStep === createSteps.length - 1 ? (
-            <Button type="submit" loading={saving} className="hidden md:inline-flex md:ml-auto">
-              Salvar produto
-            </Button>
-          ) : null}
+            {createStep < createSteps.length - 1 ? (
+              <Button type="button" onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}>
+                Próxima etapa
+              </Button>
+            ) : (
+              <Button type="submit" loading={saving} className="hidden md:inline-flex">
+                Concluir e voltar
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div
-          className={`fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden ${
-            createStep !== createSteps.length - 1 ? 'hidden' : ''
-          }`}
-        >
-          <Button type="submit" loading={saving} className="w-full">
-            Salvar produto
-          </Button>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" loading={saving} className="flex-1" onClick={() => void saveCurrentStep()}>
+              Salvar
+            </Button>
+            {createStep < createSteps.length - 1 ? (
+              <Button type="button" className="flex-1" onClick={() => setCreateStep((s) => Math.min(createSteps.length - 1, s + 1))}>
+                Próxima
+              </Button>
+            ) : (
+              <Button type="submit" loading={saving} className="flex-1">
+                Concluir
+              </Button>
+            )}
+          </div>
         </div>
       </form>
 

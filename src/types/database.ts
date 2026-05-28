@@ -279,6 +279,8 @@ export type Database = {
           shipping_snapshot: Json
           notes: string
           source: string
+          stock_applied: boolean
+          stock_restored: boolean
         }
       }
       order_items: {
