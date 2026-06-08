@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
+import { PixQrCode } from '@/components/billing/PixQrCode'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -143,7 +144,7 @@ export function StorePlanPage() {
       const result = await createPixCharge(store.id)
       setPix(result)
       saveStoredPix(store.id, result)
-      notifyOk('PIX gerado. Use o link de pagamento ou copie o código.')
+      notifyOk('PIX gerado. Escaneie o QR Code ou copie o código.')
     } catch (e) {
       notifyErr(e instanceof Error ? e.message : 'Erro ao gerar PIX')
     } finally {
@@ -226,24 +227,16 @@ export function StorePlanPage() {
                 Valor: {formatCurrency(pix.valueCents / 100)}
               </p>
               <p className="mt-1 text-sm text-ink-500">
-                Abra a página de pagamento da Woovi ou copie o código PIX no seu banco.
+                Escaneie o QR Code no app do banco ou copie o código PIX. O pagamento é confirmado
+                automaticamente nesta página.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {pix.paymentLinkUrl && (
-                <Button
-                  type="button"
-                  onClick={() => window.open(pix.paymentLinkUrl!, '_blank', 'noopener,noreferrer')}
-                >
-                  Abrir link de pagamento
-                </Button>
-              )}
-              {pix.brCode && (
-                <Button variant="secondary" type="button" onClick={() => void copyBrCode()}>
-                  Copiar código PIX
-                </Button>
-              )}
-            </div>
+            {pix.brCode && <PixQrCode brCode={pix.brCode} />}
+            {pix.brCode && (
+              <Button type="button" onClick={() => void copyBrCode()}>
+                Copiar código PIX
+              </Button>
+            )}
           </div>
         )}
       </Card>
