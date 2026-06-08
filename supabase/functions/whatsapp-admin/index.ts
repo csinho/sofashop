@@ -11,6 +11,7 @@ import {
 import { ensureStoreOrdersGroup } from '../_shared/ordersGroup.ts'
 import { defaultNotifySettingsRecord, type NotifySettingItem } from '../_shared/messageTemplate.ts'
 import { phoneToEvolutionNumber } from '../_shared/templates.ts'
+import { handlePlatformWhatsAppAdmin } from '../_shared/platformWhatsAppAdminHandler.ts'
 import { getServiceClient, isErrorResponse, requireStoreMember } from '../_shared/supabase.ts'
 
 type InstanceRow = {
@@ -173,12 +174,19 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json() as {
+      scope?: string
       action?: string
       storeId?: string
+      connectPhone?: string
       notifyStatuses?: Record<string, boolean>
       notifySettings?: Record<string, NotifySettingItem>
       appBaseUrl?: string
     }
+
+    if (body.scope === 'platform') {
+      return handlePlatformWhatsAppAdmin(req, body)
+    }
+
     const { action, storeId, notifyStatuses, notifySettings, appBaseUrl } = body
 
     if (!action || !storeId) {

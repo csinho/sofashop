@@ -57,14 +57,14 @@ async function invokePlatformAdmin<T>(body: Record<string, unknown>): Promise<T>
     setTimeout(() => {
       reject(
         new Error(
-          'A integração WhatsApp da plataforma demorou demais. Republicar a Edge Function platform-whatsapp-admin no Supabase.',
+          'A integração WhatsApp da plataforma demorou demais para responder. Tente novamente em instantes.',
         ),
       )
     }, TIMEOUT_MS)
   })
 
   const { data, error } = await Promise.race([
-    sb.functions.invoke('platform-whatsapp-admin', { body }),
+    sb.functions.invoke('whatsapp-admin', { body: { scope: 'platform', ...body } }),
     timeout,
   ])
   if (error) throw new Error(await readEdgeFunctionError(error))

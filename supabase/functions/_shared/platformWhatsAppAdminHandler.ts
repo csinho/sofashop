@@ -1,9 +1,9 @@
-import { corsHeaders, jsonResponse, optionsResponse } from '../_shared/cors.ts'
+import { corsHeaders, jsonResponse } from './cors.ts'
 import {
   evolutionRequest,
   instanceNameForPlatform,
   webhookUrlForPlatform,
-} from '../_shared/evolution.ts'
+} from './evolution.ts'
 import {
   extractCreateInstanceId,
   extractCreateToken,
@@ -11,13 +11,13 @@ import {
   normalizeFetchedInstance,
   parseConnectResponse,
   profilePatchFromEvolution,
-} from '../_shared/evolutionParse.ts'
+} from './evolutionParse.ts'
 import {
   defaultPlatformNotifySettingsRecord,
   type NotifySettingItem,
-} from '../_shared/messageTemplate.ts'
-import { phoneToEvolutionNumber } from '../_shared/templates.ts'
-import { getServiceClient, isErrorResponse, requirePlatformAdmin } from '../_shared/supabase.ts'
+} from './messageTemplate.ts'
+import { phoneToEvolutionNumber } from './templates.ts'
+import { getServiceClient, isErrorResponse, requirePlatformAdmin } from './supabase.ts'
 
 const SINGLETON_KEY = 'platform'
 
@@ -36,6 +36,12 @@ type InstanceRow = {
   notify_settings: Record<string, NotifySettingItem>
   connected_at: string | null
   paused_at: string | null
+}
+
+export type PlatformWhatsAppAdminBody = {
+  action?: string
+  connectPhone?: string
+  notifySettings?: Record<string, NotifySettingItem>
 }
 
 async function getInstance(sb: ReturnType<typeof getServiceClient>) {
@@ -170,15 +176,30 @@ function resolvePhone(row: InstanceRow | null, bodyPhone?: string) {
   return normalizeConnectPhone(row.connect_phone)
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return optionsResponse()
+function sanitize(row: InstanceRow) {
+  return {
+    singleton_key: row.singleton_key,
+    instance_name: row.instance_name,
+    instance_id: row.instance_id,
+    status: row.status,
+    connection_state: row.connection_state,
+    profile_name: row.profile_name,
+    profile_picture_url: row.profile_picture_url,
+    owner_number: row.owner_number,
+    owner_jid: row.owner_jid,
+    connect_phone: row.connect_phone,
+    notify_settings: row.notify_settings,
+    connected_at: row.connected_at,
+    paused_at: row.paused_at,
+  }
+}
 
+/** WhatsApp da plataforma — mesma Edge Function `whatsapp-admin`, scope=platform. */
+export async function handlePlatformWhatsAppAdmin(
+  req: Request,
+  body: PlatformWhatsAppAdminBody,
+): Promise<Response> {
   try {
-    const body = await req.json() as {
-      action?: string
-      connectPhone?: string
-      notifySettings?: Record<string, NotifySettingItem>
-    }
     const { action, connectPhone, notifySettings } = body
 
     if (!action) {
@@ -433,23 +454,5 @@ Deno.serve(async (req) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
     return jsonResponse({ error: msg }, 500)
-  }
-})
-
-function sanitize(row: InstanceRow) {
-  return {
-    singleton_key: row.singleton_key,
-    instance_name: row.instance_name,
-    instance_id: row.instance_id,
-    status: row.status,
-    connection_state: row.connection_state,
-    profile_name: row.profile_name,
-    profile_picture_url: row.profile_picture_url,
-    owner_number: row.owner_number,
-    owner_jid: row.owner_jid,
-    connect_phone: row.connect_phone,
-    notify_settings: row.notify_settings,
-    connected_at: row.connected_at,
-    paused_at: row.paused_at,
   }
 }
