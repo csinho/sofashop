@@ -9,6 +9,7 @@ type AuthCtx = {
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  updatePassword: (newPassword: string) => Promise<void>
 }
 
 const Ctx = createContext<AuthCtx | null>(null)
@@ -59,8 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     const supabase = getSupabaseBrowserClient()
-    const redirect = `${window.location.origin}/login`
+    const redirect = `${window.location.origin}/redefinir-senha`
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect })
+    if (error) throw error
+  }, [])
+
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const supabase = getSupabaseBrowserClient()
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) throw error
   }, [])
 
@@ -72,8 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       resetPassword,
+      updatePassword,
     }),
-    [session, loading, signIn, signOut, resetPassword],
+    [session, loading, signIn, signOut, resetPassword, updatePassword],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

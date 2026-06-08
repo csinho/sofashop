@@ -4,17 +4,40 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/contexts/AuthContext'
+import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { notifyOk } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getPwaBrandName } from '@/lib/documentTitle'
 import { isPlatformAdmin } from '@/services/platformService'
 
 export function LoginPage() {
+  const nav = useNavigate()
+
   useEffect(() => {
     document.title = `${getPwaBrandName()} — Entrar`
   }, [])
 
-  const nav = useNavigate()
+  useEffect(() => {
+    const sb = getSupabaseBrowserClient()
+    const hash = window.location.hash.replace(/^#/, '')
+    const type = hash ? new URLSearchParams(hash).get('type') : null
+
+    if (type === 'recovery') {
+      nav('/redefinir-senha' + window.location.hash, { replace: true })
+      return
+    }
+
+    const {
+      data: { subscription },
+    } = sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        nav('/redefinir-senha', { replace: true })
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [nav])
+
   const { signIn, resetPassword } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

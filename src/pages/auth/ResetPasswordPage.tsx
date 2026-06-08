@@ -1,0 +1,159 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Card } from '@/components/ui/Card'
+import { useAuth } from '@/contexts/AuthContext'
+import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
+import { notifyOk } from '@/lib/notify'
+import { BRAND_ASSETS } from '@/lib/brandAssets'
+import { getPwaBrandName } from '@/lib/documentTitle'
+import { isPlatformAdmin } from '@/services/platformService'
+
+function hashTypeIsRecovery() {
+  const hash = window.location.hash.replace(/^#/, '')
+  if (!hash) return false
+  return new URLSearchParams(hash).get('type') === 'recovery'
+}
+
+export function ResetPasswordPage() {
+  const nav = useNavigate()
+  const { updatePassword } = useAuth()
+  const [ready, setReady] = useState(false)
+  const [recovery, setRecovery] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    document.title = `${getPwaBrandName()} — Redefinir senha`
+  }, [])
+
+  useEffect(() => {
+    const sb = getSupabaseBrowserClient()
+    let cancelled = false
+    let recoveryDetected = hashTypeIsRecovery()
+
+    if (recoveryDetected) {
+      setRecovery(true)
+    }
+
+    const {
+      data: { subscription },
+    } = sb.auth.onAuthStateChange((event) => {
+      if (cancelled) return
+      if (event === 'PASSWORD_RECOVERY') {
+        recoveryDetected = true
+        setRecovery(true)
+        setReady(true)
+      }
+    })
+
+    void (async () => {
+      if (recoveryDetected) {
+        await new Promise((resolve) => setTimeout(resolve, 200))
+      }
+      const {
+        data: { session },
+      } = await sb.auth.getSession()
+      if (cancelled) return
+      if (session && recoveryDetected) {
+        setRecovery(true)
+      }
+      setReady(true)
+    })()
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    setErr(null)
+
+    if (password.length < 6) {
+      setErr('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
+    if (password !== confirm) {
+      setErr('As senhas não coincidem.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await updatePassword(password)
+      notifyOk('Senha redefinida com sucesso.')
+      const master = await isPlatformAdmin()
+      nav(master ? '/plataforma/lojas' : '/admin', { replace: true })
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Não foi possível redefinir a senha.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-ink-50 text-ink-500">
+        Validando link de recuperação…
+      </div>
+    )
+  }
+
+  if (!recovery) {
+    return <Navigate to="/login" replace />
+  }
+
+  return (
+    <div className="mx-auto flex min-h-svh max-w-md flex-col justify-center px-4 py-12">
+      <div className="mb-8 flex w-full justify-center px-1">
+        <img
+          src={BRAND_ASSETS.logoFull}
+          alt=""
+          className="h-16 w-full max-w-md object-contain sm:h-[4.5rem] md:h-20"
+        />
+      </div>
+      <Link to="/login" className="mb-6 text-sm font-medium text-brand-700 hover:underline">
+        ← Voltar ao login
+      </Link>
+      <Card>
+        <h1 className="font-display text-2xl font-semibold text-ink-900">Redefinir senha</h1>
+        <p className="mt-1 text-sm text-ink-500">Escolha uma nova senha para a sua conta.</p>
+        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+          <div>
+            <label className="text-xs font-medium text-ink-600">Nova senha</label>
+            <Input
+              className="mt-1"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={6}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-ink-600">Confirmar nova senha</label>
+            <Input
+              className="mt-1"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={6}
+            />
+          </div>
+          {err ? <p className="text-sm text-red-600">{err}</p> : null}
+          <Button type="submit" className="w-full" loading={loading}>
+            Salvar nova senha
+          </Button>
+        </form>
+      </Card>
+    </div>
+  )
+}

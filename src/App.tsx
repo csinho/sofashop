@@ -5,6 +5,7 @@ import { SetupPage } from '@/pages/SetupPage'
 import { LandingPage } from '@/pages/marketing/LandingPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterStorePage } from '@/pages/auth/RegisterStorePage'
+import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage'
 import { CatalogLayout } from '@/pages/public/CatalogLayout'
 import { CatalogPageModern } from '@/pages/public/CatalogPageModern'
 import { ProductDetailPage } from '@/pages/public/ProductDetailPage'
@@ -44,6 +45,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/cadastro" element={<RegisterStorePage />} />
 
             <Route path="/loja/:slug" element={<CatalogLayout />}>
