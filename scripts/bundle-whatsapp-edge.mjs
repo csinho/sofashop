@@ -42,6 +42,14 @@ const DEPS = {
     'storeOrderGroupNotify.ts',
   ],
   'whatsapp-webhook': ['cors.ts', 'evolution.ts', 'supabase.ts', 'ordersGroup.ts', 'templates.ts', 'storeAssets.ts'],
+  'platform-whatsapp-admin': [
+    'cors.ts',
+    'evolution.ts',
+    'evolutionParse.ts',
+    'templates.ts',
+    'supabase.ts',
+    'messageTemplate.ts',
+  ],
 }
 
 const JWT = {
@@ -49,6 +57,7 @@ const JWT = {
   'whatsapp-send': true,
   'whatsapp-notify-checkout': false,
   'whatsapp-webhook': false,
+  'platform-whatsapp-admin': true,
 }
 
 function fixImports(content) {
@@ -78,7 +87,7 @@ function bundle(name) {
 
 const fn = process.argv[2]
 if (!fn) {
-  console.error('Informe o nome: whatsapp-admin | whatsapp-send | whatsapp-notify-checkout | whatsapp-webhook')
+  console.error('Informe o nome: whatsapp-admin | platform-whatsapp-admin | whatsapp-send | whatsapp-notify-checkout | whatsapp-webhook')
   process.exit(1)
 }
 

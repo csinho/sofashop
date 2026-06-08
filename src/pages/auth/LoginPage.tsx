@@ -38,7 +38,7 @@ export function LoginPage() {
       const master = await isPlatformAdmin()
       if (master) {
         notifyOk('Login realizado. Painel da plataforma.')
-        nav('/plataforma/lojas', { replace: true })
+        nav('/plataforma', { replace: true })
         return
       }
       notifyOk('Login realizado.')
@@ -99,7 +99,7 @@ export function LoginPage() {
         </Link>
       </p>
       <p className="mt-3 text-center text-xs text-ink-500">
-        <Link className="font-medium text-ink-600 underline decoration-ink-300 hover:text-brand-700" to="/plataforma/lojas">
+        <Link className="font-medium text-ink-600 underline decoration-ink-300 hover:text-brand-700" to="/plataforma">
           Acesso direto ao painel da plataforma
         </Link>
         {' '}(já autenticado)

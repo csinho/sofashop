@@ -32,7 +32,7 @@ if (-not $env:SUPABASE_ACCESS_TOKEN) {
 
 $functions = @('whatsapp-send', 'whatsapp-notify-checkout', 'whatsapp-webhook')
 if ($IncludeAdmin) {
-  $functions = @('whatsapp-admin') + $functions
+  $functions = @('whatsapp-admin', 'platform-whatsapp-admin') + $functions
 }
 
 foreach ($fn in $functions) {

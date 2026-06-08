@@ -58,3 +58,12 @@ export function webhookUrlForStore(storeId: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   return `${supabaseUrl}/functions/v1/whatsapp-webhook?storeId=${storeId}`
 }
+
+export function instanceNameForPlatform() {
+  return 'sofashop-plataforma'
+}
+
+export function webhookUrlForPlatform() {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+  return `${supabaseUrl}/functions/v1/whatsapp-webhook?scope=platform`
+}

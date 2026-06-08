@@ -415,6 +415,8 @@ export type Database = {
       platform_list_stores: { Args: Record<string, never>; Returns: Json }
       platform_get_store: { Args: { p_store_id: string }; Returns: Json }
       platform_set_store_is_active: { Args: { p_store_id: string; p_is_active: boolean }; Returns: void }
+      get_platform_whatsapp_instance_safe: { Args: Record<string, never>; Returns: Json }
+      update_platform_whatsapp_notify_settings: { Args: { p_settings: Json }; Returns: Json }
       get_store_whatsapp_instance_safe: { Args: { p_store_id: string }; Returns: Json }
       update_store_whatsapp_notify_settings: {
         Args: { p_store_id: string; p_settings: Json; p_app_base_url?: string | null }

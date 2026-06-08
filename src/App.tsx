@@ -26,6 +26,8 @@ import { SettingsPage } from '@/pages/admin/SettingsPage'
 import { CatalogDataPage } from '@/pages/admin/CatalogDataPage'
 import { PwaEntryHandler } from '@/components/PwaEntryHandler'
 import { PlatformLayout } from '@/pages/platform/PlatformLayout'
+import { PlatformDashboardPage } from '@/pages/platform/PlatformDashboardPage'
+import { PlatformSettingsPage } from '@/pages/platform/PlatformSettingsPage'
 import { PlatformStoreDetailPage } from '@/pages/platform/PlatformStoreDetailPage'
 import { PlatformStoresPage } from '@/pages/platform/PlatformStoresPage'
 
@@ -72,9 +74,10 @@ export default function App() {
             </Route>
 
             <Route path="/plataforma" element={<PlatformLayout />}>
-              <Route index element={<Navigate to="/plataforma/lojas" replace />} />
+              <Route index element={<PlatformDashboardPage />} />
               <Route path="lojas" element={<PlatformStoresPage />} />
               <Route path="lojas/:storeId" element={<PlatformStoreDetailPage />} />
+              <Route path="configuracoes" element={<PlatformSettingsPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

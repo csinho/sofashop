@@ -5,8 +5,13 @@ import { cn } from '@/lib/cn'
 import { formatBrazilPhoneDisplay } from '@/lib/phoneBr'
 import type { WhatsAppInstanceSafe } from '@/services/whatsappAdminService'
 
+type InstanceCardData = Pick<
+  WhatsAppInstanceSafe,
+  'status' | 'profile_name' | 'profile_picture_url' | 'owner_number'
+>
+
 type Props = {
-  instance: WhatsAppInstanceSafe
+  instance: InstanceCardData
   onPause: () => void | Promise<void>
   onResume: () => void | Promise<void>
   onDelete: () => void | Promise<void>
@@ -14,7 +19,7 @@ type Props = {
   deleting?: boolean
 }
 
-function statusBadge(status: WhatsAppInstanceSafe['status']) {
+function statusBadge(status: InstanceCardData['status']) {
   if (status === 'connected') return { label: 'Conectado', className: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
   if (status === 'paused') return { label: 'Pausado', className: 'bg-amber-50 text-amber-800 border-amber-200' }
   if (status === 'connecting') return { label: 'Conectando…', className: 'bg-sky-50 text-sky-800 border-sky-200' }

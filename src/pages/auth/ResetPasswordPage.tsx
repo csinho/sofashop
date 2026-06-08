@@ -53,7 +53,7 @@ export function ResetPasswordPage() {
       await updatePassword(password)
       notifyOk('Senha redefinida com sucesso.')
       const master = await isPlatformAdmin()
-      nav(master ? '/plataforma/lojas' : '/admin', { replace: true })
+      nav(master ? '/plataforma' : '/admin', { replace: true })
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Não foi possível redefinir a senha.')
     } finally {

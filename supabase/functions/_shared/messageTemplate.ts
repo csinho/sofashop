@@ -47,6 +47,25 @@ export function defaultNotifySettingsRecord(): Record<string, NotifySettingItem>
   )
 }
 
+export const DEFAULT_PLATFORM_EVENT_TEMPLATES: Record<string, string> = {
+  store_registered:
+    'Olá! Sua loja {{NOME_LOJA}} foi cadastrada no SofáShop. Em breve você receberá informações sobre o plano.',
+  payment_due_5d:
+    'Olá! Faltam 5 dias para o vencimento do plano da loja {{NOME_LOJA}}. Efetue o pagamento via PIX para manter o acesso.',
+  payment_due_3d:
+    'Olá! Faltam 3 dias para o vencimento do plano da loja {{NOME_LOJA}}. Efetue o pagamento via PIX para evitar a pausa da loja.',
+  payment_confirmed: 'Pagamento confirmado! O plano da loja {{NOME_LOJA}} está em dia. Obrigado!',
+}
+
+export function defaultPlatformNotifySettingsRecord(): Record<string, NotifySettingItem> {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_PLATFORM_EVENT_TEMPLATES).map(([event, template]) => [
+      event,
+      { enabled: false, template },
+    ]),
+  )
+}
+
 export function resolveStatusTemplate(
   settings: Record<string, NotifySettingItem> | null | undefined,
   status: string,
