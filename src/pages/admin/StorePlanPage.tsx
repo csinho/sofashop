@@ -20,6 +20,40 @@ import {
 } from '@/services/billingService'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 
+/** Mesmo TTL da cobrança na Woovi (expiresIn 3 dias). */
+const PIX_CHARGE_TTL_MS = 3 * 24 * 60 * 60 * 1000
+
+type StoredPixCharge = PixChargeResult & { expiresAt: number }
+
+function pixStorageKey(storeId: string) {
+  return `sofashop:pending-pix:${storeId}`
+}
+
+function loadStoredPix(storeId: string): PixChargeResult | null {
+  try {
+    const raw = sessionStorage.getItem(pixStorageKey(storeId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StoredPixCharge
+    if (Date.now() >= parsed.expiresAt) {
+      sessionStorage.removeItem(pixStorageKey(storeId))
+      return null
+    }
+    const { expiresAt: _expiresAt, ...pix } = parsed
+    return pix
+  } catch {
+    return null
+  }
+}
+
+function saveStoredPix(storeId: string, pix: PixChargeResult) {
+  const stored: StoredPixCharge = { ...pix, expiresAt: Date.now() + PIX_CHARGE_TTL_MS }
+  sessionStorage.setItem(pixStorageKey(storeId), JSON.stringify(stored))
+}
+
+function clearStoredPix(storeId: string) {
+  sessionStorage.removeItem(pixStorageKey(storeId))
+}
+
 async function downloadReceiptPdf(storeId: string, endToEndId: string) {
   const sb = getSupabaseBrowserClient()
   const { data: session } = await sb.auth.getSession()
@@ -61,6 +95,19 @@ export function StorePlanPage() {
   }, [])
 
   useEffect(() => {
+    if (!store?.id) return
+    const stored = loadStoredPix(store.id)
+    if (stored) setPix(stored)
+  }, [store?.id])
+
+  useEffect(() => {
+    if (!store?.id || billing?.billing_status === 'ativo') {
+      if (store?.id) clearStoredPix(store.id)
+      setPix(null)
+    }
+  }, [store?.id, billing?.billing_status])
+
+  useEffect(() => {
     if (!store?.id) return undefined
     let alive = true
     void listStoreBillingPayments(store.id)
@@ -95,7 +142,8 @@ export function StorePlanPage() {
     try {
       const result = await createPixCharge(store.id)
       setPix(result)
-      notifyOk('PIX gerado. Escaneie o QR Code ou copie o código.')
+      saveStoredPix(store.id, result)
+      notifyOk('PIX gerado. Use o link de pagamento ou copie o código.')
     } catch (e) {
       notifyErr(e instanceof Error ? e.message : 'Erro ao gerar PIX')
     } finally {
@@ -163,7 +211,7 @@ export function StorePlanPage() {
           </p>
         )}
 
-        {showPix && (
+        {showPix && !pix && (
           <div className="border-t border-ink-100 pt-4">
             <Button onClick={() => void handleGeneratePix()} disabled={generating}>
               {generating ? 'Gerando…' : 'Gerar PIX'}
@@ -172,35 +220,30 @@ export function StorePlanPage() {
         )}
 
         {pix && (
-          <div className="rounded-xl border border-ink-200 bg-ink-50/50 p-4 space-y-3">
-            <p className="text-sm font-medium text-ink-800">
-              Valor: {formatCurrency(pix.valueCents / 100)}
-            </p>
-            {pix.qrCodeImage && (
-              <img
-                src={pix.qrCodeImage.startsWith('data:') ? pix.qrCodeImage : `data:image/png;base64,${pix.qrCodeImage}`}
-                alt="QR Code PIX"
-                className="mx-auto h-48 w-48 rounded-lg bg-white p-2"
-              />
-            )}
-            {pix.brCode && (
-              <div className="space-y-2">
-                <p className="break-all text-xs text-ink-600">{pix.brCode}</p>
+          <div className="rounded-xl border border-ink-200 bg-ink-50/50 p-4 space-y-4">
+            <div>
+              <p className="text-sm font-medium text-ink-800">
+                Valor: {formatCurrency(pix.valueCents / 100)}
+              </p>
+              <p className="mt-1 text-sm text-ink-500">
+                Abra a página de pagamento da Woovi ou copie o código PIX no seu banco.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {pix.paymentLinkUrl && (
+                <Button
+                  type="button"
+                  onClick={() => window.open(pix.paymentLinkUrl!, '_blank', 'noopener,noreferrer')}
+                >
+                  Abrir link de pagamento
+                </Button>
+              )}
+              {pix.brCode && (
                 <Button variant="secondary" type="button" onClick={() => void copyBrCode()}>
                   Copiar código PIX
                 </Button>
-              </div>
-            )}
-            {pix.paymentLinkUrl && (
-              <a
-                href={pix.paymentLinkUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium text-brand-700 hover:underline"
-              >
-                Abrir link de pagamento
-              </a>
-            )}
+              )}
+            </div>
           </div>
         )}
       </Card>
