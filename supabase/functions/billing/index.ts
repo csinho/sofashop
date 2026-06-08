@@ -38,7 +38,9 @@ Deno.serve(async (req) => {
       const sb = getServiceClient()
       const { data: store } = await sb
         .from('stores')
-        .select('id, trade_name, billing_status, next_billing_at, trial_ends_at')
+        .select(
+          'id, trade_name, legal_name, document_kind, document, whatsapp_1, email_contact, billing_status, next_billing_at, trial_ends_at',
+        )
         .eq('id', storeId)
         .maybeSingle()
       if (!store) return jsonResponse({ error: 'Loja não encontrada' }, 404)
@@ -49,7 +51,13 @@ Deno.serve(async (req) => {
         correlationID,
         valueCents,
         comment: `Plano SofáShop ${store.trade_name}`.slice(0, 140),
-        customerName: store.trade_name,
+        customer: {
+          name: store.trade_name || store.legal_name,
+          phone: store.whatsapp_1,
+          email: store.email_contact,
+          document: store.document,
+          documentKind: store.document_kind,
+        },
       })
 
       return jsonResponse({
