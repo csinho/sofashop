@@ -10,6 +10,7 @@ import { validateCpfCnpj } from '@/lib/validators/cpfCnpj'
 import { validateBrazilPhone } from '@/lib/validators/phone'
 import { fetchAddressByCep } from '@/integrations/viacep'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
+import { notifyStoreRegistered } from '@/services/billingService'
 import { notifyOk } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getPwaBrandName } from '@/lib/documentTitle'
@@ -139,6 +140,8 @@ export function RegisterStorePage() {
 
       if (rpcErr) throw rpcErr
       const id = storeId as unknown as string
+
+      void notifyStoreRegistered(id).catch(() => {})
 
       if (logoFile && id) {
         void (async () => {

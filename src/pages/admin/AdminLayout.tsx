@@ -3,6 +3,7 @@ import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import {
   Copy,
   CreditCard,
+  Crown,
   Database,
   LayoutDashboard,
   LogOut,
@@ -19,6 +20,8 @@ import { useMyStore } from '@/hooks/useMyStore'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { notifyErr, notifyOk } from '@/lib/notify'
+import { BillingStatusBanner } from '@/components/admin/BillingStatusBanner'
+import { useStoreBilling } from '@/hooks/useStoreBilling'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getDefaultDocumentTitle, getPwaBrandName } from '@/lib/documentTitle'
 
@@ -28,6 +31,7 @@ const nav = [
   { to: '/admin/pedidos', label: 'Pedidos', icon: ShoppingCart },
   { to: '/admin/clientes', label: 'Clientes', icon: Users },
   { to: '/admin/financeiro', label: 'Financeiro', icon: CreditCard },
+  { to: '/admin/plano', label: 'Plano', icon: Crown },
   { to: '/admin/dados-catalogo', label: 'Dados do catálogo', icon: Database },
   { to: '/admin/configuracoes', label: 'Configurações', icon: Settings },
 ]
@@ -60,6 +64,7 @@ async function copyText(value: string) {
 export function AdminLayout() {
   const { user, loading: authLoading, signOut } = useAuth()
   const { store, loading: storeLoading } = useMyStore()
+  const { billing } = useStoreBilling(store?.id)
   const loc = useLocation()
   const [open, setOpen] = useState(false)
 
@@ -92,13 +97,16 @@ export function AdminLayout() {
   }
 
   const pathBase = loc.pathname.replace(/\/$/, '') || '/'
-  const isDashboardOnly = pathBase === '/admin'
-  if (store.is_active === false && !isDashboardOnly) {
+  const allowedWhenLocked =
+    pathBase === '/admin' || pathBase === '/admin/plano' || pathBase.startsWith('/admin/plano/')
+  if (store.is_active === false && !allowedWhenLocked) {
     return <Navigate to="/admin" replace />
   }
 
   const storeLocked = store.is_active === false
-  const navItems = storeLocked ? nav.filter((item) => item.to === '/admin') : nav
+  const navItems = storeLocked
+    ? nav.filter((item) => item.to === '/admin' || item.to === '/admin/plano')
+    : nav
 
   return (
     <div className="flex min-h-svh flex-col bg-ink-50 lg:h-svh lg:min-h-0 lg:flex-row lg:overflow-hidden">
@@ -228,7 +236,8 @@ export function AdminLayout() {
           </div>
         </header>
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+            {billing ? <BillingStatusBanner billing={billing} /> : null}
             <Outlet context={{ store }} />
           </div>
         </main>

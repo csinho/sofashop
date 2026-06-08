@@ -17,12 +17,16 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { notifyInfo } from '@/lib/notify'
+import { formatPlanLabel, usePublicPlan } from '@/hooks/usePublicPlan'
+import { BILLING_TRIAL_DAYS } from '@/lib/billing/constants'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getDefaultDocumentTitle } from '@/lib/documentTitle'
+import { notifyInfo } from '@/lib/notify'
 import { getPreferredPwaStartPath, isStandaloneDisplay } from '@/lib/pwaEntry'
 
 export function LandingPage() {
+  const { plan } = usePublicPlan()
+
   useEffect(() => {
     document.title = getDefaultDocumentTitle()
   }, [])
@@ -67,6 +71,10 @@ export function LandingPage() {
             <p className="mt-4 text-base text-ink-600 md:text-lg">
               Catálogo online para seus clientes comprarem com facilidade e painel completo para você controlar produtos, pedidos,
               clientes e financeiro.
+            </p>
+            <p className="mt-3 inline-flex flex-wrap items-center gap-2 text-sm font-medium text-brand-800">
+              <BadgeCheck className="h-4 w-4" />
+              {plan.trial_days ?? BILLING_TRIAL_DAYS} dias grátis · depois {formatPlanLabel(plan.plan_value_cents)}/mês via PIX
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">

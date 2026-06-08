@@ -4,7 +4,10 @@ import { Copy } from 'lucide-react'
 import { StoreLogoAvatar } from '@/components/platform/StoreLogoAvatar'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { BillingStatusBadge } from '@/lib/billing/badges'
+import { formatDateBrt } from '@/lib/billing/dates'
 import { cn } from '@/lib/cn'
+import { PlatformStoreBillingPayments } from '@/components/platform/PlatformStoreBillingPayments'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import {
   getPlatformStore,
@@ -176,6 +179,7 @@ export function PlatformStoreDetailPage() {
               >
                 {row.catalog_published ? 'Catálogo publicado' : 'Catálogo não publicado'}
               </span>
+              <BillingStatusBadge status={row.billing_status} />
             </div>
             <p className="mt-3 break-words text-sm text-ink-700">Razão social: {row.legal_name}</p>
             <p className="mt-1 break-all text-sm text-ink-700">Contato: {row.email_contact}</p>
@@ -223,6 +227,24 @@ export function PlatformStoreDetailPage() {
           />
         </Card>
       </div>
+
+      <h3 className="font-display text-lg font-semibold text-ink-900">Plano e pagamentos</h3>
+      <Card className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <DetailField label="Status do plano" value={<BillingStatusBadge status={row.billing_status} />} />
+          <DetailField
+            label="Próxima cobrança"
+            value={formatDateBrt(row.next_billing_at ?? row.trial_ends_at ?? null)}
+          />
+          <DetailField label="Último pagamento" value={formatDateBrt(row.last_payment_at ?? null)} />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Histórico</p>
+          <div className="mt-3">
+            <PlatformStoreBillingPayments storeId={row.id} />
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

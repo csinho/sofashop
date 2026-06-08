@@ -8,6 +8,18 @@ export function getServiceClient(): SupabaseClient {
   )
 }
 
+/** Cliente com JWT do usuário — necessário para RPCs que usam auth.uid() / is_platform_admin(). */
+export function getUserClient(authHeader: string): SupabaseClient {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  )
+}
+
 export async function requireStoreMember(req: Request, storeId: string): Promise<User | Response> {
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {

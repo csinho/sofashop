@@ -1,6 +1,8 @@
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
 import { normalizeStoreLogoUrl } from '@/lib/storeImageUrl'
 
+import type { BillingStatus } from '@/lib/billing/constants'
+
 export type PlatformStoreSummary = {
   id: string
   slug: string
@@ -11,6 +13,11 @@ export type PlatformStoreSummary = {
   is_active: boolean
   catalog_published: boolean
   created_at: string
+  billing_status?: BillingStatus
+  next_billing_at?: string | null
+  trial_ends_at?: string | null
+  last_payment_at?: string | null
+  billing_period_ends_at?: string | null
   customer_count: number
   order_count: number
   orders_total: number
@@ -46,6 +53,11 @@ function parseStoreSummary(raw: unknown): PlatformStoreSummary {
     is_active: Boolean(r.is_active),
     catalog_published: Boolean(r.catalog_published),
     created_at: String(r.created_at ?? ''),
+    billing_status: (r.billing_status as BillingStatus | undefined) ?? 'trial',
+    next_billing_at: r.next_billing_at ? String(r.next_billing_at) : null,
+    trial_ends_at: r.trial_ends_at ? String(r.trial_ends_at) : null,
+    last_payment_at: r.last_payment_at ? String(r.last_payment_at) : null,
+    billing_period_ends_at: r.billing_period_ends_at ? String(r.billing_period_ends_at) : null,
     customer_count: num(r.customer_count),
     order_count: num(r.order_count),
     orders_total: num(r.orders_total),

@@ -158,6 +158,22 @@ export type CatalogStoreRow = {
   checkout_payment_config?: CheckoutPaymentConfig | null
 }
 
+export type BillingStatus = 'trial' | 'ativo' | 'pendente' | 'inadimplente'
+
+export type BillingPaymentRow = {
+  id: string
+  paid_at: string
+  value_cents: number
+  correlation_id: string | null
+  end_to_end_id: string | null
+  status: 'pago' | 'reembolsado'
+  refunded_at?: string | null
+  refund_value_cents?: number | null
+  suggested_refund_cents?: number | null
+  refund_type?: string | null
+  days_used_at_refund?: number | null
+}
+
 export type StoreRow = CatalogStoreRow & {
   created_at: string
   updated_at: string
@@ -170,6 +186,12 @@ export type StoreRow = CatalogStoreRow & {
   default_order_notes: string
   /** Só a plataforma altera; membros veem, não editam. */
   is_active: boolean
+  billing_status?: BillingStatus
+  trial_ends_at?: string | null
+  next_billing_at?: string | null
+  billing_period_ends_at?: string | null
+  last_payment_at?: string | null
+  catalog_paused_by_billing?: boolean
 }
 
 export type Database = {
@@ -394,6 +416,8 @@ export type Database = {
           recipient_kind: 'customer' | 'store_group'
         }
       }
+      billing_payments: { Row: BillingPaymentRow & { store_id: string; woovi_event_key?: string | null } }
+      system_settings: { Row: { key: string; value: Json; updated_at: string } }
     }
     Views: {
       catalog_stores_v: { Row: CatalogStoreRow }
@@ -422,6 +446,16 @@ export type Database = {
         Args: { p_store_id: string; p_settings: Json; p_app_base_url?: string | null }
         Returns: Json
       }
+      get_public_billing_plan: { Args: Record<string, never>; Returns: Json }
+      get_store_billing_safe: { Args: { p_store_id: string }; Returns: Json }
+      list_store_billing_payments: {
+        Args: { p_store_id: string; p_from?: string | null; p_to?: string | null }
+        Returns: Json
+      }
+      get_platform_billing_settings: { Args: Record<string, never>; Returns: Json }
+      set_platform_billing_plan: { Args: { p_cents: number }; Returns: Json }
+      platform_list_billing_payments: { Args: { p_store_id: string }; Returns: Json }
+      platform_billing_dashboard: { Args: { p_from: string; p_to: string }; Returns: Json }
     }
     Enums: Record<string, never>
   }

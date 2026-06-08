@@ -8,7 +8,9 @@ export type PlatformWhatsAppEvent =
   | 'store_registered'
   | 'payment_due_5d'
   | 'payment_due_3d'
+  | 'payment_due_1d'
   | 'payment_confirmed'
+  | 'plan_price_changed'
 
 export type PlatformWhatsAppNotifySettings = Partial<
   Record<PlatformWhatsAppEvent, WhatsAppNotifySettingItem>

@@ -22,6 +22,8 @@ import { OrderDetailPage } from '@/pages/admin/OrderDetailPage'
 import { CustomersPage } from '@/pages/admin/CustomersPage'
 import { CustomerDetailPage } from '@/pages/admin/CustomerDetailPage'
 import { FinancePage } from '@/pages/admin/FinancePage'
+import { StorePlanPage } from '@/pages/admin/StorePlanPage'
+import { RefundPolicyPage } from '@/pages/admin/RefundPolicyPage'
 import { SettingsPage } from '@/pages/admin/SettingsPage'
 import { CatalogDataPage } from '@/pages/admin/CatalogDataPage'
 import { PwaEntryHandler } from '@/components/PwaEntryHandler'
@@ -69,6 +71,8 @@ export default function App() {
               <Route path="clientes" element={<CustomersPage />} />
               <Route path="clientes/:id" element={<CustomerDetailPage />} />
               <Route path="financeiro" element={<FinancePage />} />
+              <Route path="plano" element={<StorePlanPage />} />
+              <Route path="plano/politica-reembolso" element={<RefundPolicyPage />} />
               <Route path="dados-catalogo" element={<CatalogDataPage />} />
               <Route path="configuracoes" element={<SettingsPage />} />
             </Route>

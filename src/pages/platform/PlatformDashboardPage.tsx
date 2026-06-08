@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card } from '@/components/ui/Card'
 import { formatCurrency } from '@/lib/format'
+import { monthEndBrt, monthStartBrt } from '@/lib/billing/dates'
 import { getPwaBrandName } from '@/lib/documentTitle'
+import { fetchPlatformBillingDashboard } from '@/services/billingService'
 import { listPlatformStores, type PlatformStoreSummary } from '@/services/platformService'
 
 const COLORS = ['#22c55e', '#94a3b8', '#ea580c']
@@ -22,6 +24,14 @@ export function PlatformDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [monthFilter, setMonthFilter] = useState(() => new Date().toISOString().slice(0, 7))
   const [storeFilter, setStoreFilter] = useState('')
+  const [billingFrom, setBillingFrom] = useState(monthStartBrt)
+  const [billingTo, setBillingTo] = useState(monthEndBrt)
+  const [billingStats, setBillingStats] = useState<{
+    revenue_cents: number
+    active_count: number
+    pending_count: number
+    overdue_count: number
+  } | null>(null)
 
   useEffect(() => {
     document.title = `${getPwaBrandName()} — Dashboard da plataforma`
@@ -40,6 +50,27 @@ export function PlatformDashboardPage() {
       alive = false
     }
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    void fetchPlatformBillingDashboard(billingFrom, billingTo)
+      .then((d) => {
+        if (alive) {
+          setBillingStats({
+            revenue_cents: d.revenue_cents,
+            active_count: d.active_count,
+            pending_count: d.pending_count,
+            overdue_count: d.overdue_count,
+          })
+        }
+      })
+      .catch(() => {
+        if (alive) setBillingStats(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [billingFrom, billingTo])
 
   const filtered = useMemo(() => {
     let list = rows
@@ -190,12 +221,48 @@ export function PlatformDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {['Pagamentos recebidos', 'Pagamentos pendentes', 'Lojas em dia / atraso'].map((title) => (
-          <Card key={title} className="border-dashed border-ink-200 bg-ink-50/80">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">{title}</p>
-            <p className="mt-3 text-sm text-ink-600">Disponível após implementação dos planos de assinatura (PIX).</p>
-          </Card>
-        ))}
+        <Card>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Pagamentos recebidos</p>
+          <p className="mt-2 font-display text-2xl font-semibold text-ink-900">
+            {billingStats ? formatCurrency(billingStats.revenue_cents / 100) : '—'}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              type="date"
+              className="rounded-lg border border-ink-200 px-2 py-1 text-xs"
+              value={billingFrom}
+              onChange={(e) => setBillingFrom(e.target.value)}
+            />
+            <input
+              type="date"
+              className="rounded-lg border border-ink-200 px-2 py-1 text-xs"
+              value={billingTo}
+              onChange={(e) => setBillingTo(e.target.value)}
+            />
+          </div>
+        </Card>
+        <Card>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Pagamentos pendentes</p>
+          <p className="mt-2 font-display text-3xl font-semibold text-ink-900">
+            {billingStats?.pending_count ?? '—'}
+          </p>
+          <p className="mt-1 text-xs text-ink-500">Lojas com plano pendente ou inadimplente</p>
+        </Card>
+        <Card>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Lojas em dia / atraso</p>
+          <p className="mt-2 font-display text-3xl font-semibold text-ink-900">
+            {billingStats ? (
+              <>
+                {billingStats.active_count}
+                <span className="text-lg text-ink-400"> / </span>
+                {billingStats.overdue_count}
+              </>
+            ) : (
+              '—'
+            )}
+          </p>
+          <p className="mt-1 text-xs text-ink-500">Ativas vs. vencidas (trial incluído)</p>
+        </Card>
       </div>
     </div>
   )

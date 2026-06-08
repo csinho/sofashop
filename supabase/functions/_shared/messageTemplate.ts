@@ -54,7 +54,11 @@ export const DEFAULT_PLATFORM_EVENT_TEMPLATES: Record<string, string> = {
     'Olá! Faltam 5 dias para o vencimento do plano da loja {{NOME_LOJA}}. Efetue o pagamento via PIX para manter o acesso.',
   payment_due_3d:
     'Olá! Faltam 3 dias para o vencimento do plano da loja {{NOME_LOJA}}. Efetue o pagamento via PIX para evitar a pausa da loja.',
+  payment_due_1d:
+    'Olá! Amanhã vence o plano da loja {{NOME_LOJA}}. Efetue o pagamento via PIX para manter o acesso.',
   payment_confirmed: 'Pagamento confirmado! O plano da loja {{NOME_LOJA}} está em dia. Obrigado!',
+  plan_price_changed:
+    'O valor do plano SofáShop foi alterado de {{VALOR_ANTIGO}} para {{VALOR_NOVO}}. O novo valor vale na próxima cobrança.',
 }
 
 export function defaultPlatformNotifySettingsRecord(): Record<string, NotifySettingItem> {

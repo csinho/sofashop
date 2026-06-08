@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { ListPaginationBar } from '@/components/ui/ListPaginationBar'
 import { useListPagination } from '@/hooks/useListPagination'
 import { cn } from '@/lib/cn'
+import { BillingStatusBadge } from '@/lib/billing/badges'
 import { formatCurrency } from '@/lib/format'
 import { listPlatformStores, setStoreActive, type PlatformStoreSummary } from '@/services/platformService'
 import { notifyErr, notifyOk } from '@/lib/notify'
@@ -123,6 +124,9 @@ export function PlatformStoresPage() {
                   <p className="text-xs text-ink-500">{r.slug}</p>
                   <p className="mt-1 line-clamp-1 break-all text-xs text-ink-600">{r.email_contact}</p>
                   <p className="mt-1 text-sm font-medium text-ink-800">{formatCurrency(r.orders_total)}</p>
+                  <div className="mt-2">
+                    <BillingStatusBadge status={r.billing_status} />
+                  </div>
                 </div>
                 <span
                   className={cn(
@@ -195,14 +199,17 @@ export function PlatformStoresPage() {
                     {formatCurrency(r.orders_total)}
                   </td>
                   <td className="whitespace-nowrap py-2.5 pl-0 pr-1 align-top">
-                    <span
-                      className={cn(
-                        'inline-block max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        r.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-ink-200 text-ink-700',
-                      )}
-                    >
-                      {r.is_active ? 'Ativa' : 'Inativa'}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={cn(
+                          'inline-block max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium',
+                          r.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-ink-200 text-ink-700',
+                        )}
+                      >
+                        {r.is_active ? 'Ativa' : 'Inativa'}
+                      </span>
+                      <BillingStatusBadge status={r.billing_status} />
+                    </div>
                   </td>
                   <td
                     className="whitespace-nowrap py-2.5 pl-0 pr-3 text-right align-top"

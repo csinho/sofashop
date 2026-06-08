@@ -18,14 +18,18 @@ import {
   platformWhatsAppAdminResume,
   platformWhatsAppAdminSyncProfile,
   platformWhatsAppAdminVerifyConnectPhone,
+  platformWhatsAppAdminUpdateNotifySettings,
   type PlatformWhatsAppInstanceSafe,
+  type PlatformWhatsAppNotifySettings,
 } from '@/services/platformWhatsAppAdminService'
 
 const FUTURE_EVENTS = [
   { id: 'store_registered', label: 'Loja cadastrada', desc: 'Enviar mensagem à loja quando ela se registrar.' },
   { id: 'payment_due_5d', label: 'Vencimento em 5 dias', desc: 'Lembrete PIX 5 dias antes do vencimento do plano.' },
   { id: 'payment_due_3d', label: 'Vencimento em 3 dias', desc: 'Lembrete PIX 3 dias antes do vencimento do plano.' },
+  { id: 'payment_due_1d', label: 'Vencimento em 1 dia', desc: 'Lembrete PIX 1 dia antes do vencimento do plano.' },
   { id: 'payment_confirmed', label: 'Pagamento confirmado', desc: 'Confirmação após pagamento do plano via PIX.' },
+  { id: 'plan_price_changed', label: 'Valor do plano alterado', desc: 'Aviso quando o admin altera o preço mensal.' },
 ] as const
 
 type ConnectMode = 'qr' | 'pairing'
@@ -191,6 +195,26 @@ export function PlatformWhatsAppSettingsTab() {
       }
     : null
 
+  async function toggleEvent(eventId: string, enabled: boolean) {
+    if (!instance?.notify_settings) return
+    const next: PlatformWhatsAppNotifySettings = {
+      ...instance.notify_settings,
+      [eventId]: {
+        enabled,
+        template:
+          instance.notify_settings[eventId as keyof PlatformWhatsAppNotifySettings]?.template ??
+          '',
+      },
+    }
+    try {
+      await platformWhatsAppAdminUpdateNotifySettings(next)
+      setInstance((prev) => (prev ? { ...prev, notify_settings: next } : prev))
+      notifyOk(enabled ? 'Notificação ativada.' : 'Notificação desativada.')
+    } catch (e) {
+      notifyErr(e instanceof Error ? e.message : 'Erro ao salvar')
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-ink-500">Carregando WhatsApp da plataforma…</p>
   }
@@ -299,28 +323,45 @@ export function PlatformWhatsAppSettingsTab() {
         </Card>
       )}
 
-      <Card className="space-y-4 opacity-80">
+      <Card className="space-y-4">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink-900">Mensagens automáticas</h2>
           <p className="mt-1 text-sm text-ink-500">
-            Em breve — após implementação dos planos de assinatura. Os disparos abaixo serão configuráveis aqui.
+            Ative os eventos de billing e cadastro. Os disparos usam a instância WhatsApp da plataforma conectada acima.
           </p>
         </div>
         <ul className="space-y-3">
-          {FUTURE_EVENTS.map((ev) => (
-            <li
-              key={ev.id}
-              className="flex items-start justify-between gap-4 rounded-xl border border-ink-100 bg-ink-50/50 px-4 py-3"
-            >
-              <div>
-                <p className="text-sm font-medium text-ink-800">{ev.label}</p>
-                <p className="text-xs text-ink-500">{ev.desc}</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-ink-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-ink-600">
-                Em breve
-              </span>
-            </li>
-          ))}
+          {FUTURE_EVENTS.map((ev) => {
+            const enabled = Boolean(instance?.notify_settings?.[ev.id]?.enabled)
+            return (
+              <li
+                key={ev.id}
+                className="flex items-start justify-between gap-4 rounded-xl border border-ink-100 bg-ink-50/50 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-ink-800">{ev.label}</p>
+                  <p className="text-xs text-ink-500">{ev.desc}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  className={cn(
+                    'relative h-6 w-11 shrink-0 rounded-full transition',
+                    enabled ? 'bg-brand-600' : 'bg-ink-300',
+                  )}
+                  onClick={() => void toggleEvent(ev.id, !enabled)}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition',
+                      enabled ? 'left-[22px]' : 'left-0.5',
+                    )}
+                  />
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </Card>
 

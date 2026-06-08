@@ -43,6 +43,38 @@ const DEPS = {
     'storeOrderGroupNotify.ts',
   ],
   'whatsapp-webhook': ['cors.ts', 'evolution.ts', 'supabase.ts', 'ordersGroup.ts', 'templates.ts', 'storeAssets.ts'],
+  billing: [
+    'cors.ts',
+    'supabase.ts',
+    'billingConstants.ts',
+    'billingLogic.ts',
+    'billingNotify.ts',
+    'woovi.ts',
+    'evolution.ts',
+    'messageTemplate.ts',
+    'templates.ts',
+  ],
+  'woovi-webhook': [
+    'cors.ts',
+    'supabase.ts',
+    'billingConstants.ts',
+    'billingLogic.ts',
+    'billingNotify.ts',
+    'woovi.ts',
+    'evolution.ts',
+    'messageTemplate.ts',
+    'templates.ts',
+  ],
+  'billing-cron': [
+    'cors.ts',
+    'supabase.ts',
+    'billingConstants.ts',
+    'billingLogic.ts',
+    'billingNotify.ts',
+    'evolution.ts',
+    'messageTemplate.ts',
+    'templates.ts',
+  ],
 }
 
 const JWT = {
@@ -50,6 +82,9 @@ const JWT = {
   'whatsapp-send': true,
   'whatsapp-notify-checkout': false,
   'whatsapp-webhook': false,
+  billing: true,
+  'woovi-webhook': false,
+  'billing-cron': false,
 }
 
 function fixImports(content) {
@@ -79,7 +114,7 @@ function bundle(name) {
 
 const fn = process.argv[2]
 if (!fn) {
-  console.error('Informe o nome: whatsapp-admin | whatsapp-send | whatsapp-notify-checkout | whatsapp-webhook')
+  console.error('Informe o nome: whatsapp-admin | billing | woovi-webhook | billing-cron | ...')
   process.exit(1)
 }
 
