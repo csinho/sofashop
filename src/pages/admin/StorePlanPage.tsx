@@ -187,9 +187,13 @@ export function StorePlanPage() {
     <div className="min-w-0 space-y-6">
       <div>
         <h1 className="font-display text-2xl font-semibold text-ink-900">Plano da loja</h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Assinatura mensal do SofáShop — {formatPlanLabel(billing.plan_value_cents)}/mês
-        </p>
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-2">
+          <span className="font-display text-3xl font-semibold tracking-tight text-brand-700">
+            {formatPlanLabel(billing.plan_value_cents)}
+          </span>
+          <span className="text-base font-medium text-ink-500">/mês</span>
+        </div>
+        <p className="mt-1 text-sm text-ink-500">Assinatura mensal do {getPwaBrandName()}</p>
       </div>
 
       <Card className="space-y-4">
