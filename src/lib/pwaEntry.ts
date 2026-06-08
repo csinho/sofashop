@@ -22,6 +22,8 @@ export function isSafePwaInternalPath(path: string): boolean {
   const p = path.split('?')[0] ?? path
   if (p === '/admin') return true
   if (p.startsWith('/admin/')) return true
+  if (p === '/plataforma') return true
+  if (p.startsWith('/plataforma/')) return true
   if (p.startsWith('/loja/')) return true
   return false
 }

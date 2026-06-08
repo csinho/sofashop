@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import { AuthRedirectSplash } from '@/components/AuthRedirectSplash'
+import { useAuthenticatedHomePath } from '@/hooks/useAuthenticatedHomePath'
 import {
   ArrowRight,
   BarChart3,
@@ -26,10 +28,19 @@ import { getPreferredPwaStartPath, isStandaloneDisplay } from '@/lib/pwaEntry'
 
 export function LandingPage() {
   const { plan } = usePublicPlan()
+  const { homePath, loading: authRedirectLoading } = useAuthenticatedHomePath()
 
   useEffect(() => {
     document.title = getDefaultDocumentTitle()
   }, [])
+
+  if (authRedirectLoading) {
+    return <AuthRedirectSplash />
+  }
+
+  if (homePath) {
+    return <Navigate to={homePath} replace />
+  }
 
   if (isStandaloneDisplay()) {
     const start = getPreferredPwaStartPath()

@@ -1,17 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { AuthRedirectSplash } from '@/components/AuthRedirectSplash'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAuthenticatedHomePath } from '@/hooks/useAuthenticatedHomePath'
+import { resolveAuthenticatedHomePath } from '@/lib/authHomePath'
 import { isRecoveryInUrl } from '@/lib/authRecovery'
 import { notifyOk } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getPwaBrandName } from '@/lib/documentTitle'
-import { isPlatformAdmin } from '@/services/platformService'
 
 export function LoginPage() {
   const nav = useNavigate()
+  const { homePath, loading: authRedirectLoading } = useAuthenticatedHomePath()
 
   useEffect(() => {
     document.title = `${getPwaBrandName()} — Entrar`
@@ -35,19 +38,24 @@ export function LoginPage() {
     setLoading(true)
     try {
       await signIn(email, password)
-      const master = await isPlatformAdmin()
-      if (master) {
-        notifyOk('Login realizado. Painel da plataforma.')
-        nav('/plataforma', { replace: true })
-        return
-      }
-      notifyOk('Login realizado.')
-      nav('/admin', { replace: true })
+      const path = await resolveAuthenticatedHomePath()
+      notifyOk(
+        path === '/plataforma' ? 'Login realizado. Painel da plataforma.' : 'Login realizado.',
+      )
+      nav(path, { replace: true })
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Não foi possível entrar.')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authRedirectLoading) {
+    return <AuthRedirectSplash />
+  }
+
+  if (homePath) {
+    return <Navigate to={homePath} replace />
   }
 
   return (

@@ -12,7 +12,13 @@ export function PwaEntryHandler() {
   useEffect(() => {
     const path = loc.pathname
     const p = `${path}${loc.search || ''}` || '/'
-    if (p.startsWith('/loja/') || path === '/admin' || path.startsWith('/admin/')) {
+    if (
+      p.startsWith('/loja/') ||
+      path === '/admin' ||
+      path.startsWith('/admin/') ||
+      path === '/plataforma' ||
+      path.startsWith('/plataforma/')
+    ) {
       setPreferredPwaStartPath(p)
     }
   }, [loc.pathname, loc.search])

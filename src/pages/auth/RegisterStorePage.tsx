@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { AuthRedirectSplash } from '@/components/AuthRedirectSplash'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
@@ -14,6 +15,7 @@ import { notifyStoreRegistered } from '@/services/billingService'
 import { notifyOk } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getPwaBrandName } from '@/lib/documentTitle'
+import { useAuthenticatedHomePath } from '@/hooks/useAuthenticatedHomePath'
 
 function slugify(s: string) {
   return s
@@ -26,6 +28,8 @@ function slugify(s: string) {
 }
 
 export function RegisterStorePage() {
+  const { homePath, loading: authRedirectLoading } = useAuthenticatedHomePath()
+
   useEffect(() => {
     document.title = `${getPwaBrandName()} — Cadastrar loja`
   }, [])
@@ -162,6 +166,14 @@ export function RegisterStorePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authRedirectLoading) {
+    return <AuthRedirectSplash />
+  }
+
+  if (homePath && homePath !== '/cadastro') {
+    return <Navigate to={homePath} replace />
   }
 
   return (
