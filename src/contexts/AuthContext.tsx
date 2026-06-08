@@ -1,15 +1,18 @@
 import type { Session, User } from '@supabase/supabase-js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
+import { captureRecoveryFromUrl, clearRecoveryPending, markRecoveryPending } from '@/lib/authRecovery'
 
 type AuthCtx = {
   user: User | null
   session: Session | null
   loading: boolean
+  recoveryPending: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   updatePassword: (newPassword: string) => Promise<void>
+  clearRecoveryMode: () => void
 }
 
 const Ctx = createContext<AuthCtx | null>(null)
@@ -17,10 +20,27 @@ const Ctx = createContext<AuthCtx | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recoveryPending, setRecoveryPending] = useState(() => captureRecoveryFromUrl())
 
   useEffect(() => {
     let cancelled = false
     const supabase = getSupabaseBrowserClient()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, sess) => {
+      if (cancelled) return
+      if (event === 'PASSWORD_RECOVERY') {
+        markRecoveryPending()
+        setRecoveryPending(true)
+      }
+      setSession(sess)
+      if (event === 'SIGNED_OUT') {
+        clearRecoveryPending()
+        setRecoveryPending(false)
+      }
+    })
+
     setLoading(true)
     void supabase.auth
       .getSession()
@@ -34,12 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setLoading(false)
       })
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, sess) => {
-      if (!cancelled) setSession(sess)
-    })
-
     return () => {
       cancelled = true
       subscription.unsubscribe()
@@ -50,12 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    clearRecoveryPending()
+    setRecoveryPending(false)
   }, [])
 
   const signOut = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    clearRecoveryPending()
+    setRecoveryPending(false)
   }, [])
 
   const resetPassword = useCallback(async (email: string) => {
@@ -69,6 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient()
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) throw error
+    clearRecoveryPending()
+    setRecoveryPending(false)
+  }, [])
+
+  const clearRecoveryMode = useCallback(() => {
+    clearRecoveryPending()
+    setRecoveryPending(false)
   }, [])
 
   const value = useMemo<AuthCtx>(
@@ -76,12 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       session,
       loading,
+      recoveryPending,
       signIn,
       signOut,
       resetPassword,
       updatePassword,
+      clearRecoveryMode,
     }),
-    [session, loading, signIn, signOut, resetPassword, updatePassword],
+    [session, loading, recoveryPending, signIn, signOut, resetPassword, updatePassword, clearRecoveryMode],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

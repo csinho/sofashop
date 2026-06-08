@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/contexts/AuthContext'
-import { getSupabaseBrowserClient } from '@/integrations/supabase/client'
+import { isRecoveryInUrl } from '@/lib/authRecovery'
 import { notifyOk } from '@/lib/notify'
 import { BRAND_ASSETS } from '@/lib/brandAssets'
 import { getPwaBrandName } from '@/lib/documentTitle'
@@ -18,32 +18,16 @@ export function LoginPage() {
   }, [])
 
   useEffect(() => {
-    const sb = getSupabaseBrowserClient()
-    const hash = window.location.hash.replace(/^#/, '')
-    const type = hash ? new URLSearchParams(hash).get('type') : null
-
-    if (type === 'recovery') {
-      nav('/redefinir-senha' + window.location.hash, { replace: true })
-      return
+    if (isRecoveryInUrl()) {
+      nav(`/redefinir-senha${window.location.hash}${window.location.search}`, { replace: true })
     }
-
-    const {
-      data: { subscription },
-    } = sb.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        nav('/redefinir-senha', { replace: true })
-      }
-    })
-
-    return () => subscription.unsubscribe()
   }, [nav])
 
-  const { signIn, resetPassword } = useAuth()
+  const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [recoverMsg, setRecoverMsg] = useState<string | null>(null)
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -61,25 +45,6 @@ export function LoginPage() {
       nav('/admin', { replace: true })
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Não foi possível entrar.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function onRecover() {
-    setErr(null)
-    setRecoverMsg(null)
-    if (!email.trim()) {
-      setErr('Informe o e-mail para recuperação.')
-      return
-    }
-    setLoading(true)
-    try {
-      await resetPassword(email.trim())
-      setRecoverMsg('Enviamos um link de recuperação para o seu e-mail.')
-      notifyOk('E-mail de recuperação enviado.')
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Falha ao solicitar recuperação.')
     } finally {
       setLoading(false)
     }
@@ -116,18 +81,15 @@ export function LoginPage() {
             />
           </div>
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
-          {recoverMsg ? <p className="text-sm text-emerald-700">{recoverMsg}</p> : null}
           <Button type="submit" className="w-full" loading={loading}>
             Entrar
           </Button>
-          <button
-            type="button"
-            className="w-full text-center text-sm font-medium text-brand-700 hover:underline"
-            title="Enviar e-mail de redefinição de senha para o endereço informado."
-            onClick={onRecover}
+          <Link
+            to="/recuperar-senha"
+            className="block w-full text-center text-sm font-medium text-brand-700 hover:underline"
           >
-            Recuperar senha
-          </button>
+            Esqueci minha senha
+          </Link>
         </form>
       </Card>
       <p className="mt-6 text-center text-sm text-ink-600">

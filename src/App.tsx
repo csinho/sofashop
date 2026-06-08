@@ -4,6 +4,7 @@ import { CartProvider } from '@/contexts/CartContext'
 import { SetupPage } from '@/pages/SetupPage'
 import { LandingPage } from '@/pages/marketing/LandingPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 import { RegisterStorePage } from '@/pages/auth/RegisterStorePage'
 import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage'
 import { CatalogLayout } from '@/pages/public/CatalogLayout'
@@ -45,6 +46,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
             <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/cadastro" element={<RegisterStorePage />} />
 

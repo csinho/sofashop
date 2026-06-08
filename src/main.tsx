@@ -1,8 +1,11 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'sonner'
+import { captureRecoveryFromUrl } from '@/lib/authRecovery'
 import './index.css'
 import App from './App.tsx'
+
+captureRecoveryFromUrl()
 
 function ResponsiveToaster() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)

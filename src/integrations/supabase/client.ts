@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseConfig } from '@/integrations/supabase/env'
+import { captureRecoveryFromUrl } from '@/lib/authRecovery'
 
 let browserClient: SupabaseClient | null = null
 
@@ -45,6 +46,7 @@ const catalogAuthMemory = (() => {
 /** Cliente principal: sessão do painel / dono da loja (persistSession padrão). */
 export function getSupabaseBrowserClient(): SupabaseClient {
   if (!browserClient) {
+    captureRecoveryFromUrl()
     tryMigrateAdminSessionFromLegacy()
     const { url, anonKey } = getSupabaseConfig()
     browserClient = createClient(url, anonKey, {
